@@ -1,0 +1,17 @@
+/* src/app/(autenticado)/globals-autenticado.css */
+.layout-container {
+  display: flex;
+}
+
+.main-content {
+  flex-grow: 1;
+  padding-left: 250px; /* Ancho del sidebar */
+  transition: padding-left 0.3s ease-in-out;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding-left: 0; /* Sin padding en móvil */
+  }
+}

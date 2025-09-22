@@ -1,0 +1,149 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  background-color: #f0f2f5;
+  color: #333;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  text-align: center;
+  color: #1a2b4d;
+}
+
+form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+input[type="text"] {
+  flex-grow: 1;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+button {
+  padding: 12px 20px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #d93025;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.question-card {
+  background-color: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.question-card ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.question-card li {
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* --- ESTILOS ADICIONALES --- */
+.options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.option-btn {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #333;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.option-btn:hover {
+  background-color: #f0f2f5;
+}
+
+/* Estilo para la opción seleccionada */
+.option-btn.selected {
+  background-color: #dbeafe;
+  border-color: #007bff;
+  font-weight: bold;
+}
+
+.submit-btn {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 15px;
+  font-size: 18px;
+  background-color: #28a745;
+}
+.submit-btn:hover {
+  background-color: #218838;
+}
+
+/* Estilos para el contenedor de resultados */
+.results-container {
+  text-align: center;
+}
+
+.results-container h2 {
+  color: #1a2b4d;
+  font-size: 2em;
+}
+
+.results-container .score {
+  font-size: 2.5em;
+  font-weight: bold;
+  color: #007bff;
+  margin: 20px 0;
+}
+
+.results-container .correct {
+  font-size: 1.2em;
+  color: #28a745;
+}
+
+.results-container .incorrect {
+  font-size: 1.2em;
+  color: #d93025;
+}
