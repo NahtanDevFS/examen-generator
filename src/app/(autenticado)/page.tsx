@@ -5,14 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 
-// Definimos un tipo para la estructura de nuestras preguntas
+// ... (los tipos Question y Results no cambian)
 type Question = {
   question: string;
   options: string[];
   answer: string;
 };
-
-// Nuevo tipo para los resultados
 type Results = {
   score: number;
   correctAnswers: number;
@@ -29,11 +27,7 @@ export default function HomePage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // --- NUEVOS ESTADOS ---
-  // 1. Para guardar las respuestas del usuario { índice_pregunta: respuesta_seleccionada }
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: string }>({});
-  // 2. Para guardar los resultados del examen
   const [results, setResults] = useState<Results | null>(null);
 
   useEffect(() => {
@@ -75,8 +69,6 @@ export default function HomePage() {
     }
   };
 
-  // --- NUEVA FUNCIÓN ---
-  // Se ejecuta cuando el usuario selecciona una opción
   const handleAnswerSelect = (
     questionIndex: number,
     selectedOption: string
@@ -87,7 +79,6 @@ export default function HomePage() {
     }));
   };
 
-  // Se ejecuta cuando el usuario quiere calificar el examen
   const handleSubmitExam = () => {
     let correctAnswers = 0;
     questions.forEach((question, index) => {
@@ -102,8 +93,6 @@ export default function HomePage() {
     });
   };
 
-  // --- NUEVA FUNCIÓN ---
-  // Para reiniciar y generar otro examen
   const handleReset = () => {
     setTopic("");
     setQuestions([]);
@@ -112,23 +101,20 @@ export default function HomePage() {
   };
 
   if (loadingSession) {
-    return <div className="container">Cargando sesión...</div>;
+    // Puedes poner un spinner o un componente de carga más elaborado aquí
+    return <div style={{ padding: "20px" }}>Cargando sesión...</div>;
   }
 
   if (!session) {
-    return null; // O un mensaje, pero el redirect ya debería haber actuado
+    return null; // El redirect ya está en marcha
   }
 
   return (
-    <main className="container">
-      <header className="page-header">
-        <p>
-          Hola, <strong>{session.user.email}</strong>
-        </p>
-      </header>
+    // --- LÍNEA CORREGIDA ---
+    // Quitamos la clase "container" y envolvemos el contenido en un div propio
+    <div className="page-content">
       <h1>Generador de Exámenes con IA 🧠</h1>
 
-      {/* Si no hay examen, muestra el formulario de generación */}
       {questions.length === 0 && !results && (
         <form onSubmit={handleGenerateExam}>
           <input
@@ -147,7 +133,6 @@ export default function HomePage() {
       {isLoading && <p>Cargando preguntas...</p>}
       {error && <p className="error">{error}</p>}
 
-      {/* Si hay preguntas y no hay resultados, muestra el examen */}
       {questions.length > 0 && !results && (
         <section className="exam-container">
           <h2>Examen sobre: {topic}</h2>
@@ -179,7 +164,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Si hay resultados, muéstralos */}
       {results && (
         <section className="results-container">
           <h2>Resultados 📊</h2>
@@ -195,6 +179,6 @@ export default function HomePage() {
           </button>
         </section>
       )}
-    </main>
+    </div>
   );
 }

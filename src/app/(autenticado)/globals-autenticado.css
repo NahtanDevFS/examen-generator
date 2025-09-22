@@ -5,13 +5,35 @@
 
 .main-content {
   flex-grow: 1;
-  padding-left: 250px; /* Ancho del sidebar */
-  transition: padding-left 0.3s ease-in-out;
   width: 100%;
+  /* Añadimos un padding interno para el contenido */
+  padding: 2.5rem;
+  transition: padding-left 0.3s ease-in-out;
+}
+
+/* El contenido dentro de la página principal */
+.main-content .page-content {
+  max-width: 800px;
+  margin: 0 auto; /* Centramos el contenido, sin margen vertical */
+}
+
+/* Ajuste de padding-left basado en el estado del sidebar */
+.layout-container.sidebar-expanded .main-content {
+  padding-left: calc(260px + 2.5rem); /* Ancho del sidebar + padding */
+}
+
+.layout-container.sidebar-collapsed .main-content {
+  padding-left: calc(80px + 2.5rem); /* Ancho del sidebar colapsado + padding */
 }
 
 @media (max-width: 768px) {
   .main-content {
-    padding-left: 0; /* Sin padding en móvil */
+    padding: 1.5rem; /* Menos padding en móvil */
+  }
+
+  /* En móvil, el padding-left no se ve afectado por el sidebar */
+  .layout-container.sidebar-expanded .main-content,
+  .layout-container.sidebar-collapsed .main-content {
+    padding-left: 1.5rem;
   }
 }

@@ -64,13 +64,51 @@ export default function LoginPage() {
 
   if (isPasswordRecovery) {
     return (
+      <div className="login-page-wrapper">
+        {" "}
+        {/* Contenedor principal */}
+        <div className="login-container">
+          <div className="login-form">
+            <h2>Recuperar Contraseña</h2>
+            <p className="subtitle">
+              Ingresa tu correo para recibir instrucciones.
+            </p>
+            <form onSubmit={handlePasswordRecovery}>
+              <div className="input-group">
+                <label htmlFor="email">Correo electrónico</label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <button type="submit" className="auth-button">
+                Enviar Instrucciones
+              </button>
+            </form>
+            {error && <p className="error-message">{error}</p>}
+            {message && <p className="success-message">{message}</p>}
+            <p className="toggle-auth">
+              <span onClick={() => setIsPasswordRecovery(false)}>
+                Volver a Iniciar Sesión
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="login-page-wrapper">
+      {" "}
+      {/* Contenedor principal */}
       <div className="login-container">
         <div className="login-form">
-          <h2>Recuperar Contraseña</h2>
-          <p className="subtitle">
-            Ingresa tu correo para recibir instrucciones.
-          </p>
-          <form onSubmit={handlePasswordRecovery}>
+          <h2>{isSignUp ? "Crear Cuenta" : "Iniciar Sesión"}</h2>
+          <form onSubmit={handleAuth}>
             <div className="input-group">
               <label htmlFor="email">Correo electrónico</label>
               <input
@@ -81,70 +119,36 @@ export default function LoginPage() {
                 required
               />
             </div>
+            <div className="input-group">
+              <label htmlFor="password">Contraseña</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {!isSignUp && (
+              <div className="forgot-password">
+                <span onClick={() => setIsPasswordRecovery(true)}>
+                  ¿Olvidaste tu contraseña?
+                </span>
+              </div>
+            )}
             <button type="submit" className="auth-button">
-              Enviar Instrucciones
+              {isSignUp ? "Registrarse" : "Iniciar Sesión"}
             </button>
           </form>
           {error && <p className="error-message">{error}</p>}
           {message && <p className="success-message">{message}</p>}
           <p className="toggle-auth">
-            <span onClick={() => setIsPasswordRecovery(false)}>
-              Volver a Iniciar Sesión
+            {isSignUp ? "¿Ya tienes una cuenta? " : "¿No tienes una cuenta? "}
+            <span onClick={() => setIsSignUp(!isSignUp)}>
+              {isSignUp ? "Inicia Sesión" : "Regístrate"}
             </span>
           </p>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="login-container">
-      <div className="login-form">
-        <h2>{isSignUp ? "Crear Cuenta" : "Iniciar Sesión"}</h2>
-        <form onSubmit={handleAuth}>
-          <div className="input-group">
-            <label htmlFor="email">Correo electrónico</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="input-group">
-            <label htmlFor="password">Contraseña</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {!isSignUp && (
-            <div className="forgot-password">
-              <span onClick={() => setIsPasswordRecovery(true)}>
-                ¿Olvidaste tu contraseña?
-              </span>
-            </div>
-          )}
-
-          <button type="submit" className="auth-button">
-            {isSignUp ? "Registrarse" : "Iniciar Sesión"}
-          </button>
-        </form>
-
-        {error && <p className="error-message">{error}</p>}
-        {message && <p className="success-message">{message}</p>}
-
-        <p className="toggle-auth">
-          {isSignUp ? "¿Ya tienes una cuenta? " : "¿No tienes una cuenta? "}
-          <span onClick={() => setIsSignUp(!isSignUp)}>
-            {isSignUp ? "Inicia Sesión" : "Regístrate"}
-          </span>
-        </p>
       </div>
     </div>
   );

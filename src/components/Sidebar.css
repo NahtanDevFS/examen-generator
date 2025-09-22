@@ -1,8 +1,8 @@
 /* src/components/Sidebar.css */
 .sidebar {
-  background-color: #111827; /* Darker background */
+  background-color: #111827;
   color: #e5e7eb;
-  width: 260px; /* Slightly wider */
+  width: 260px;
   height: 100vh;
   position: fixed;
   top: 0;
@@ -10,16 +10,15 @@
   display: flex;
   flex-direction: column;
   padding: 1rem;
-  transition: width 0.3s ease-in-out;
-  z-index: 1000;
+  transition: width 0.3s ease, transform 0.3s ease; /* Transición para móvil también */
+  z-index: 1001;
   border-right: 1px solid #374151;
 }
 
 .sidebar.collapsed {
-  width: 80px; /* Width when collapsed */
+  width: 80px;
 }
 
-/* Header */
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -30,19 +29,20 @@
   font-weight: bold;
   white-space: nowrap;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
-/* Hide logo text when collapsed */
 .sidebar.collapsed .sidebar-logo-text {
   display: none;
 }
 
-/* Navigation Links */
 .sidebar-nav {
+  flex-grow: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex-grow: 1;
 }
 
 .sidebar-nav a {
@@ -57,6 +57,7 @@
   gap: 1rem;
   white-space: nowrap;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .sidebar-nav a:hover {
@@ -64,21 +65,25 @@
   color: #fff;
 }
 
-/* Hide link text when collapsed */
+.sidebar-nav a.active {
+  background-color: #007bff;
+  color: #fff;
+  font-weight: 600;
+}
+
 .sidebar.collapsed .sidebar-nav a span {
   display: none;
 }
 
-/* Center icons when collapsed */
 .sidebar.collapsed .sidebar-nav a {
   justify-content: center;
 }
 
-/* Footer and Action Buttons */
 .sidebar-footer {
   margin-top: auto;
   padding-top: 1rem;
   border-top: 1px solid #374151;
+  flex-shrink: 0;
 }
 
 .sidebar-action-btn,
@@ -110,12 +115,73 @@
   background-color: #374151;
 }
 
-/* Hide button text when collapsed */
 .sidebar.collapsed .sidebar-action-btn span {
   display: none;
 }
 
-/* Center button icons when collapsed */
 .sidebar.collapsed .sidebar-action-btn {
   justify-content: center;
+}
+
+/* --- ESTILOS RESPONSIVE PARA MÓVIL --- */
+.hamburger-btn,
+.mobile-close-btn {
+  display: none; /* Ocultos en PC */
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 1002;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  /* Oculta el sidebar fuera de la pantalla por defecto */
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  /* Muestra el sidebar cuando tiene la clase 'mobile-open' */
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Muestra el overlay cuando el sidebar está abierto */
+  .sidebar.mobile-open + .overlay {
+    display: block;
+  }
+
+  /* Oculta el botón de colapsar de PC y muestra el de hamburguesa */
+  .sidebar-toggle {
+    display: none;
+  }
+
+  .hamburger-btn {
+    display: block;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    color: #111827; /* Color oscuro para que se vea sobre fondo claro */
+  }
+
+  /* Muestra el botón de cerrar dentro del sidebar en móvil */
+  .mobile-close-btn {
+    display: block;
+    color: #e5e7eb;
+    margin-left: auto;
+  }
+
+  /* Ajusta el header para el botón de cerrar */
+  .sidebar-header {
+    justify-content: space-between;
+  }
 }

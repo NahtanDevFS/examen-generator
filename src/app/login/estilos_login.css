@@ -1,5 +1,8 @@
 /* src/app/login/estilos_login.css */
-.login-container {
+
+/* Hacemos que todas las reglas dentro de este archivo dependan de .login-page-wrapper */
+
+.login-page-wrapper .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -8,13 +11,14 @@
   background-color: #f0f2f5;
 }
 
-form {
+/* Regla específica para el formulario de login, ya no entra en conflicto */
+.login-page-wrapper form {
   display: block;
   gap: 10px;
   margin-bottom: 20px;
 }
 
-.login-form {
+.login-page-wrapper .login-form {
   background-color: #fff;
   padding: 2.5rem;
   border-radius: 8px;
@@ -24,25 +28,25 @@ form {
   text-align: center;
 }
 
-.login-form h2 {
+.login-page-wrapper .login-form h2 {
   margin-bottom: 1.5rem;
   color: #1a2b4d;
   font-size: 1.75rem;
 }
 
-.input-group {
+.login-page-wrapper .input-group {
   margin-bottom: 1rem;
   text-align: left;
 }
 
-.input-group label {
+.login-page-wrapper .input-group label {
   display: block;
   margin-bottom: 0.5rem;
   color: #555;
   font-weight: 500;
 }
 
-.input-group input {
+.login-page-wrapper .input-group input {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #ccc;
@@ -51,7 +55,7 @@ form {
   box-sizing: border-box;
 }
 
-.auth-button {
+.login-page-wrapper .auth-button {
   width: 100%;
   padding: 0.8rem;
   border: none;
@@ -62,54 +66,54 @@ form {
   font-weight: bold;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin-top: 1rem; /* Añadido para dar espacio extra */
+  margin-top: 1rem;
 }
 
-.auth-button:hover {
+.login-page-wrapper .auth-button:hover {
   background-color: #0056b3;
 }
 
-.toggle-auth {
+.login-page-wrapper .toggle-auth {
   margin-top: 1.5rem;
   color: #555;
 }
 
-.toggle-auth span {
+.login-page-wrapper .toggle-auth span {
   color: #007bff;
   font-weight: bold;
   cursor: pointer;
 }
 
-.error-message {
+.login-page-wrapper .error-message {
   color: #d93025;
   margin-top: 1rem;
   font-size: 0.9rem;
 }
 
-.success-message {
+.login-page-wrapper .success-message {
   color: #28a745;
   margin-top: 1rem;
   font-size: 0.9rem;
 }
 
-.subtitle {
+.login-page-wrapper .subtitle {
   color: #666;
   margin-top: -1rem;
   margin-bottom: 1.5rem;
 }
 
-.forgot-password {
+.login-page-wrapper .forgot-password {
   text-align: right;
   margin-bottom: 1rem;
   margin-top: -0.5rem;
 }
 
-.forgot-password span {
+.login-page-wrapper .forgot-password span {
   color: #007bff;
   font-size: 0.9rem;
   cursor: pointer;
 }
 
-.forgot-password span:hover {
+.login-page-wrapper .forgot-password span:hover {
   text-decoration: underline;
 }
