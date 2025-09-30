@@ -5,6 +5,7 @@
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
   margin-top: 2rem;
+  text-decoration: none;
 }
 
 .history-item {
@@ -159,4 +160,9 @@
 .detail-tag.difficulty-avanzado {
   background-color: #f8d7da;
   color: #721c24;
+}
+
+.history-item-link {
+  text-decoration: none;
+  color: inherit;
 }
