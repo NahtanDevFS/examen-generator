@@ -5,8 +5,13 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: Request) {
   try {
-    // 1. Obtener 'topic' Y 'type' del cuerpo de la petición
-    const { topic, type = "opcion_multiple" } = await req.json();
+    // 1. Obtener todos los parámetros del cuerpo de la petición
+    const {
+      topic,
+      type = "opcion_multiple",
+      difficulty = "principiante", // <-- NUEVO
+      count = 10, // <-- NUEVO
+    } = await req.json();
 
     if (!topic) {
       return NextResponse.json(
@@ -15,13 +20,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // --- LÓGICA DINÁMICA PARA EL PROMPT ---
     let instructions = "";
     let jsonExample = "";
 
     if (type === "verdadero_falso") {
       instructions = `
-        Tu tarea es generar un examen de 10 preguntas de Verdadero o Falso sobre el tema: "${topic}".
+        Tu tarea es generar un examen de ${count} preguntas de Verdadero o Falso sobre el tema: "${topic}", con un nivel de dificultad "${difficulty}".
         Cada pregunta debe ser una afirmación clara que pueda ser evaluada como verdadera o falsa.
         Las opciones deben ser siempre y únicamente ["Verdadero", "Falso"].
         La respuesta correcta debe ser "Verdadero" o "Falso".
@@ -34,9 +38,9 @@ export async function POST(req: Request) {
         }
       `;
     } else {
-      // Por defecto, es 'opcion_multiple'
+      // opcion_multiple
       instructions = `
-        Tu tarea es generar un examen de 10 preguntas de opción múltiple sobre el tema: "${topic}".
+        Tu tarea es generar un examen de ${count} preguntas de opción múltiple sobre el tema: "${topic}", con un nivel de dificultad "${difficulty}".
         Cada pregunta debe tener 4 opciones.
         Una (y solo una) de las opciones debe ser la correcta.
       `;
@@ -49,7 +53,6 @@ export async function POST(req: Request) {
       `;
     }
 
-    // 2. Construir el prompt maestro final
     const prompt = `
       Actúa como un experto creador de exámenes.
       ${instructions}
@@ -59,13 +62,11 @@ export async function POST(req: Request) {
       Genera el examen completo ahora.
     `;
 
-    // 3. Llamar a la IA (sin cambios)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Usamos el modelo estable
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    // 4. Limpiar y parsear la respuesta (sin cambios)
     const cleanedText = text.replace(/```json/g, "").replace(/```/g, "");
     const jsonResponse = JSON.parse(cleanedText);
 

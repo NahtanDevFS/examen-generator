@@ -28,9 +28,13 @@ h1 {
 
 .generator-form {
   display: flex;
-  gap: 10px;
+  flex-direction: column; /* Apila los elementos verticalmente */
+  align-items: stretch; /* Estira los elementos para que tengan el mismo ancho */
+  gap: 1rem; /* Aumenta el espacio entre los elementos */
   margin-bottom: 20px;
-  align-items: center; /* Centra verticalmente los elementos */
+  max-width: 500px; /* Limita el ancho del formulario para mejor apariencia */
+  margin-left: auto; /* Centra el formulario */
+  margin-right: auto; /* Centra el formulario */
 }
 
 input[type="text"] {

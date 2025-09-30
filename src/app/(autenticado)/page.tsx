@@ -5,13 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter, useSearchParams } from "next/navigation";
 
-// Tipos que ya teníamos
+// ... (Tipos sin cambios)
 type Question = {
   question: string;
   options: string[];
   answer: string;
 };
-
 type Results = {
   score: number;
   correctAnswers: number;
@@ -26,6 +25,9 @@ export default function HomePage() {
   const [loadingSession, setLoadingSession] = useState(true);
 
   const [examType, setExamType] = useState("opcion_multiple");
+  const [difficulty, setDifficulty] = useState("principiante");
+  const [questionCount, setQuestionCount] = useState(10);
+
   const [currentExamId, setCurrentExamId] = useState<number | null>(null);
   const [topic, setTopic] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -56,7 +58,7 @@ export default function HomePage() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from("examenes")
-      .select("id, topic, questions, exam_type")
+      .select("id, topic, questions, exam_type, difficulty")
       .eq("id", examId)
       .single();
 
@@ -67,6 +69,7 @@ export default function HomePage() {
       setQuestions(data.questions);
       setCurrentExamId(data.id);
       setExamType(data.exam_type || "opcion_multiple");
+      setDifficulty(data.difficulty || "principiante");
       setResults(null);
       setUserAnswers({});
       router.replace("/", { scroll: false });
@@ -77,24 +80,26 @@ export default function HomePage() {
   const handleGenerateExam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) return;
-
     setIsLoading(true);
     setError(null);
     setQuestions([]);
     setUserAnswers({});
     setResults(null);
     setCurrentExamId(null);
-
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, type: examType }),
+        body: JSON.stringify({
+          topic,
+          type: examType,
+          difficulty: difficulty,
+          count: questionCount,
+        }),
       });
       if (!response.ok)
         throw new Error("No se pudo generar el examen desde la IA.");
       const generatedQuestions = await response.json();
-
       const { data: examData, error: examError } = await supabase
         .from("examenes")
         .insert({
@@ -102,13 +107,12 @@ export default function HomePage() {
           topic: topic,
           questions: generatedQuestions,
           exam_type: examType,
+          difficulty: difficulty, // <-- LÍNEA AÑADIDA
         })
         .select("id")
         .single();
-
       if (examError)
         throw new Error(`Error al guardar el examen: ${examError.message}`);
-
       setQuestions(generatedQuestions);
       setCurrentExamId(examData.id);
     } catch (err: any) {
@@ -120,20 +124,17 @@ export default function HomePage() {
 
   const handleSubmitExam = async () => {
     if (!session || currentExamId === null) return;
-
     let correct = 0;
     questions.forEach((question, index) => {
       if (userAnswers[index] === question.answer) {
         correct++;
       }
     });
-
     const calculatedResults = {
       score: (correct / questions.length) * 100,
       correctAnswers: correct,
       incorrectAnswers: questions.length - correct,
     };
-
     const { error: attemptError } = await supabase
       .from("intentos_examen")
       .insert({
@@ -143,11 +144,9 @@ export default function HomePage() {
         score_incorrect: calculatedResults.incorrectAnswers,
         user_answers: userAnswers,
       });
-
     if (attemptError) {
       setError(`Error al guardar tu resultado: ${attemptError.message}`);
     }
-
     setResults(calculatedResults);
   };
 
@@ -190,8 +189,29 @@ export default function HomePage() {
             disabled={isLoading}
             className="type-select"
           >
-            <option value="opcion_multiple">Respuesta Múltiple</option>
-            <option value="verdadero_falso">Verdadero o Falso</option>
+            <option value="opcion_multiple">Múltiple</option>
+            <option value="verdadero_falso">V o F</option>
+          </select>
+          <select
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value)}
+            disabled={isLoading}
+            className="type-select"
+          >
+            <option value="principiante">Principiante</option>
+            <option value="intermedio">Intermedio</option>
+            <option value="avanzado">Avanzado</option>
+          </select>
+          <select
+            value={questionCount}
+            onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+            disabled={isLoading}
+            className="type-select"
+          >
+            <option value={5}>5 Preguntas</option>
+            <option value={10}>10 Preguntas</option>
+            <option value={15}>15 Preguntas</option>
+            <option value={20}>20 Preguntas</option>
           </select>
           <button
             type="submit"
@@ -250,15 +270,12 @@ export default function HomePage() {
           <button className="submit-btn" onClick={handleReset}>
             Crear otro examen
           </button>
-
-          {/* --- NUEVA SECCIÓN DE REVISIÓN --- */}
           <div className="review-section">
             <h3 className="review-title">Revisión de Respuestas</h3>
             <div className="review-container">
               {questions.map((q, index) => {
                 const userAnswer = userAnswers[index];
                 const isCorrect = userAnswer === q.answer;
-
                 return (
                   <div key={index} className="review-question-card">
                     <p>
@@ -275,7 +292,6 @@ export default function HomePage() {
                         if (option === userAnswer && !isCorrect) {
                           className += " incorrect";
                         }
-
                         return (
                           <div key={i} className={className}>
                             {option}

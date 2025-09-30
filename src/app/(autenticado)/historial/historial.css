@@ -122,3 +122,41 @@
 .repeat-button:hover {
   background-color: #e9ecef;
 }
+
+.item-details {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap; /* Para que no se desborde en pantallas pequeñas */
+}
+
+.detail-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.detail-tag.type {
+  background-color: #eef2f9;
+  color: #4c6a9a;
+}
+
+/* Colores para cada dificultad */
+.detail-tag.difficulty-principiante {
+  background-color: #e9f7ef;
+  color: #155724;
+}
+
+.detail-tag.difficulty-intermedio {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.detail-tag.difficulty-avanzado {
+  background-color: #f8d7da;
+  color: #721c24;
+}

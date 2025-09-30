@@ -8,34 +8,30 @@ import {
   FiXCircle,
   FiCalendar,
   FiRepeat,
+  FiFileText,
+  FiAward,
 } from "react-icons/fi";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // Importa useRouter
+import { useRouter } from "next/navigation";
 import "./historial.css";
 
-// --- TIPO CORREGIDO ---
-// Cambiamos 'examenes' para que sea un array de objetos o un objeto simple.
-// Esto maneja la inconsistencia de la respuesta de Supabase.
+// Tipo actualizado para incluir los nuevos campos
 type Attempt = {
   id: number;
   created_at: string;
   score_correct: number;
   score_incorrect: number;
-  examen_id: number; // Necesitaremos el ID del examen
-  examenes:
-    | {
-        topic: string;
-      }[]
-    | {
-        // Puede ser un array...
-        topic: string;
-      }
-    | null; // ...o un objeto simple, o nulo.
+  examen_id: number;
+  examenes: {
+    topic: string;
+    exam_type: string;
+    difficulty: string | null; // Puede ser nulo para exámenes antiguos
+  } | null;
 };
 
 export default function HistorialPage() {
   const supabase = createClient();
-  const router = useRouter(); // Inicializa el router
+  const router = useRouter();
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +42,7 @@ export default function HistorialPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        // Consulta actualizada para traer los nuevos campos
         const { data, error } = await supabase
           .from("intentos_examen")
           .select(
@@ -55,7 +52,7 @@ export default function HistorialPage() {
             score_correct,
             score_incorrect,
             examen_id, 
-            examenes ( topic )
+            examenes ( topic, exam_type, difficulty )
           `
           )
           .eq("user_id", user.id)
@@ -72,17 +69,16 @@ export default function HistorialPage() {
     fetchHistory();
   }, [supabase]);
 
-  const getTopic = (exam: Attempt["examenes"]) => {
-    if (!exam) return "Tema Desconocido";
-    if (Array.isArray(exam)) {
-      return exam[0]?.topic || "Tema Desconocido";
-    }
-    return exam.topic;
+  // Función para capitalizar texto (ej: "principiante" -> "Principiante")
+  const capitalize = (s: string | null) => {
+    if (!s) return "";
+    return s.charAt(0).toUpperCase() + s.slice(1);
   };
+
   const handleRepeatExam = (e: React.MouseEvent, examId: number) => {
-    e.preventDefault(); // Evita que el Link se active
-    e.stopPropagation(); // Detiene la propagación del evento
-    router.push(`/?examId=${examId}`); // Redirige a la página principal con el ID del examen
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/?examId=${examId}`);
   };
 
   if (loading) {
@@ -93,33 +89,22 @@ export default function HistorialPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="page-content">
-        <p className="error">{error}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="page-content">
       <h1>Historial de Exámenes 📚</h1>
-
       {attempts.length === 0 ? (
         <p>Aún no has completado ningún examen. ¡Crea uno para empezar!</p>
       ) : (
         <div className="history-list">
           {attempts.map((attempt) => (
-            // --- CADA ITEM AHORA ES UN ENLACE ---
             <div key={attempt.id} className="history-item-wrapper">
               <Link
                 href={`/historial/${attempt.id}`}
-                key={attempt.id}
                 className="history-item-link"
               >
                 <div className="history-item">
                   <div className="item-header">
-                    <h3>{getTopic(attempt.examenes)}</h3>
+                    <h3>{attempt.examenes?.topic || "Tema Desconocido"}</h3>
                     <div className="item-score">
                       <FiBarChart2 />
                       <span>
@@ -131,6 +116,22 @@ export default function HistorialPage() {
                         %
                       </span>
                     </div>
+                  </div>
+                  {/* --- NUEVA SECCIÓN DE DETALLES --- */}
+                  <div className="item-details">
+                    <span className="detail-tag type">
+                      <FiFileText />{" "}
+                      {attempt.examenes?.exam_type === "opcion_multiple"
+                        ? "Opción Múltiple"
+                        : "V o F"}
+                    </span>
+                    {attempt.examenes?.difficulty && (
+                      <span
+                        className={`detail-tag difficulty-${attempt.examenes.difficulty}`}
+                      >
+                        <FiAward /> {capitalize(attempt.examenes.difficulty)}
+                      </span>
+                    )}
                   </div>
                   <div className="item-body">
                     <p>
