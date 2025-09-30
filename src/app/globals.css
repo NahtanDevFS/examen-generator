@@ -172,3 +172,63 @@ button:disabled {
 .generate-button {
   flex-shrink: 0; /* Evita que el botón se encoja */
 }
+
+.review-section {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  text-align: left;
+}
+
+.review-title {
+  font-size: 1.5rem;
+  color: #1a2b4d;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.review-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.review-question-card {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+}
+
+.review-question-card p {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.review-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.review-option {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.review-option.correct {
+  background-color: #e9f7ef;
+  border-color: #28a745;
+  color: #155724;
+  font-weight: bold;
+}
+
+.review-option.incorrect {
+  background-color: #f8d7da;
+  border-color: #dc3545;
+  color: #721c24;
+  text-decoration: line-through;
+}

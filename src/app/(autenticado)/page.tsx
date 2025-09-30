@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Tipos que ya teníamos
 type Question = {
@@ -21,16 +21,12 @@ type Results = {
 export default function HomePage() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
 
-  // --- NUEVO ESTADO PARA EL TIPO DE EXAMEN ---
-  const [examType, setExamType] = useState("opcion_multiple"); // 'opcion_multiple' o 'verdadero_falso'
-
-  // Estado para guardar el ID del examen actual
+  const [examType, setExamType] = useState("opcion_multiple");
   const [currentExamId, setCurrentExamId] = useState<number | null>(null);
-
-  // Estados del examen
   const [topic, setTopic] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,17 +35,44 @@ export default function HomePage() {
   const [results, setResults] = useState<Results | null>(null);
 
   useEffect(() => {
-    const getSession = async () => {
+    const getSessionAndLoadExam = async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
         router.push("/login");
-      } else {
-        setSession(data.session);
+        return;
       }
+      setSession(data.session);
       setLoadingSession(false);
+
+      const examIdToLoad = searchParams.get("examId");
+      if (examIdToLoad) {
+        loadExam(parseInt(examIdToLoad, 10));
+      }
     };
-    getSession();
-  }, [supabase, router]);
+    getSessionAndLoadExam();
+  }, [supabase, router, searchParams]);
+
+  const loadExam = async (examId: number) => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from("examenes")
+      .select("id, topic, questions, exam_type")
+      .eq("id", examId)
+      .single();
+
+    if (error) {
+      setError("No se pudo cargar el examen para repetirlo.");
+    } else if (data) {
+      setTopic(data.topic);
+      setQuestions(data.questions);
+      setCurrentExamId(data.id);
+      setExamType(data.exam_type || "opcion_multiple");
+      setResults(null);
+      setUserAnswers({});
+      router.replace("/", { scroll: false });
+    }
+    setIsLoading(false);
+  };
 
   const handleGenerateExam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,24 +86,22 @@ export default function HomePage() {
     setCurrentExamId(null);
 
     try {
-      // 1. Obtener preguntas de la IA
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, type: examType }), // <-- AÑADIMOS EL TIPO
+        body: JSON.stringify({ topic, type: examType }),
       });
       if (!response.ok)
         throw new Error("No se pudo generar el examen desde la IA.");
       const generatedQuestions = await response.json();
 
-      // 2. Guardar el nuevo examen en la base de datos
       const { data: examData, error: examError } = await supabase
         .from("examenes")
         .insert({
           user_id: session.user.id,
           topic: topic,
           questions: generatedQuestions,
-          exam_type: "opcion_multiple",
+          exam_type: examType,
         })
         .select("id")
         .single();
@@ -88,7 +109,6 @@ export default function HomePage() {
       if (examError)
         throw new Error(`Error al guardar el examen: ${examError.message}`);
 
-      // 3. Actualizar el estado de la aplicación
       setQuestions(generatedQuestions);
       setCurrentExamId(examData.id);
     } catch (err: any) {
@@ -101,7 +121,6 @@ export default function HomePage() {
   const handleSubmitExam = async () => {
     if (!session || currentExamId === null) return;
 
-    // 1. Calcular resultados
     let correct = 0;
     questions.forEach((question, index) => {
       if (userAnswers[index] === question.answer) {
@@ -115,7 +134,6 @@ export default function HomePage() {
       incorrectAnswers: questions.length - correct,
     };
 
-    // 2. Guardar el intento en la base de datos
     const { error: attemptError } = await supabase
       .from("intentos_examen")
       .insert({
@@ -130,7 +148,6 @@ export default function HomePage() {
       setError(`Error al guardar tu resultado: ${attemptError.message}`);
     }
 
-    // 3. Mostrar los resultados en la UI
     setResults(calculatedResults);
   };
 
@@ -163,7 +180,7 @@ export default function HomePage() {
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Escribe un tema (ej: JavaScript, Historia de Roma)"
+            placeholder="Escribe un tema (ej: JavaScript)"
             disabled={isLoading}
             className="topic-input"
           />
@@ -181,7 +198,7 @@ export default function HomePage() {
             disabled={isLoading}
             className="generate-button"
           >
-            {isLoading ? "Generando..." : "Generar Examen"}
+            {isLoading ? "Generando..." : "Generar"}
           </button>
         </form>
       )}
@@ -233,6 +250,44 @@ export default function HomePage() {
           <button className="submit-btn" onClick={handleReset}>
             Crear otro examen
           </button>
+
+          {/* --- NUEVA SECCIÓN DE REVISIÓN --- */}
+          <div className="review-section">
+            <h3 className="review-title">Revisión de Respuestas</h3>
+            <div className="review-container">
+              {questions.map((q, index) => {
+                const userAnswer = userAnswers[index];
+                const isCorrect = userAnswer === q.answer;
+
+                return (
+                  <div key={index} className="review-question-card">
+                    <p>
+                      <strong>
+                        {index + 1}. {q.question}
+                      </strong>
+                    </p>
+                    <div className="review-options">
+                      {q.options.map((option, i) => {
+                        let className = "review-option";
+                        if (option === q.answer) {
+                          className += " correct";
+                        }
+                        if (option === userAnswer && !isCorrect) {
+                          className += " incorrect";
+                        }
+
+                        return (
+                          <div key={i} className={className}>
+                            {option}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
       )}
     </div>
