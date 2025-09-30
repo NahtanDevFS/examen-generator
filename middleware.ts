@@ -45,7 +45,6 @@ export async function middleware(request: NextRequest) {
               headers: request.headers,
             },
           });
-          // --- AQUÍ ESTÁ LA CORRECCIÓN ---
           response.cookies.delete(name);
         },
       },
@@ -53,7 +52,30 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresca la sesión del usuario si ha expirado.
-  await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // Si el usuario está en la página de recuperación y no hay sesión,
+  // establece la sesión a partir del hash de la URL.
+  if (
+    !session &&
+    request.nextUrl.pathname.startsWith("/update-password") &&
+    request.nextUrl.hash
+  ) {
+    const params = new URLSearchParams(request.nextUrl.hash.slice(1));
+    const access_token = params.get("access_token");
+    const refresh_token = params.get("refresh_token");
+
+    if (access_token && refresh_token) {
+      await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+      // Vuelve a cargar la página para que el middleware se ejecute con la sesión ya establecida.
+      return NextResponse.redirect(request.nextUrl.origin + "/update-password");
+    }
+  }
 
   return response;
 }
