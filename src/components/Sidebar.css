@@ -60,15 +60,9 @@
   flex-shrink: 0;
 }
 
-.sidebar-nav a:hover {
+.sidebar-nav a:not(.active):hover {
   background-color: #374151;
   color: #fff;
-}
-
-.sidebar-nav a.active {
-  background-color: #007bff;
-  color: #fff;
-  font-weight: 600;
 }
 
 .sidebar.collapsed .sidebar-nav a span {
