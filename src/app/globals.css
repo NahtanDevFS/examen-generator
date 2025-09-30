@@ -26,10 +26,11 @@ h1 {
   color: #1a2b4d;
 }
 
-form {
+.generator-form {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  align-items: center; /* Centra verticalmente los elementos */
 }
 
 input[type="text"] {
@@ -152,4 +153,22 @@ button:disabled {
 .results-container .incorrect {
   font-size: 1.2em;
   color: #d93025;
+}
+
+/* AÑADE estas nuevas clases al final de globals.css */
+.topic-input {
+  flex-grow: 1; /* El input de tema ocupa el espacio sobrante */
+}
+
+.type-select {
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.generate-button {
+  flex-shrink: 0; /* Evita que el botón se encoja */
 }
