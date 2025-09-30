@@ -9,6 +9,7 @@
   left: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   padding: 1rem;
   transition: width 0.3s ease, transform 0.3s ease; /* Transición para móvil también */
   z-index: 1001;
@@ -38,7 +39,6 @@
 
 .sidebar-nav {
   flex-grow: 1;
-  overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
@@ -145,6 +145,9 @@
 }
 
 @media (max-width: 768px) {
+  .main-content {
+    padding: 1.5rem; /* Menos padding en móvil */
+  }
   /* Oculta el sidebar fuera de la pantalla por defecto */
   .sidebar {
     transform: translateX(-100%);
@@ -183,5 +186,11 @@
   /* Ajusta el header para el botón de cerrar */
   .sidebar-header {
     justify-content: space-between;
+  }
+
+  /* En móvil, el padding-left no se ve afectado por el sidebar */
+  .layout-container.sidebar-expanded .main-content,
+  .layout-container.sidebar-collapsed .main-content {
+    padding-left: 4rem; /* O un valor como 4rem para crear espacio */
   }
 }
