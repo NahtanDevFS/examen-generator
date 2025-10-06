@@ -59,11 +59,16 @@
   flex-shrink: 0;
 }
 
+.sidebar-nav a.active {
+  background-color: #007bff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .sidebar-nav a:not(.active):hover {
   background-color: #374151;
   color: #fff;
 }
-
 .sidebar.collapsed .sidebar-nav a span {
   display: none;
 }

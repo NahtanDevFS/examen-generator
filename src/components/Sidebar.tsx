@@ -14,6 +14,7 @@ import {
   FiChevronRight,
   FiMenu,
   FiX,
+  FiBarChart2,
 } from "react-icons/fi";
 
 type SidebarProps = {
@@ -63,6 +64,14 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
           >
             <FiHome size={22} />
             <span>Crear Examen</span>
+          </Link>
+          <Link
+            href="/estadisticas"
+            className={pathname === "/estadisticas" ? "active" : ""}
+            onClick={closeMobileMenu}
+          >
+            <FiBarChart2 size={22} />
+            <span>Estadísticas</span>
           </Link>
           <Link
             href="/historial"
