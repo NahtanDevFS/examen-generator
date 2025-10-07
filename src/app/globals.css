@@ -44,12 +44,12 @@ input[type="text"] {
   border-radius: 4px;
   font-size: 16px;
 }
-
+/*
 .page-content button {
   padding: 12px 20px;
   border: none;
-  background-color: #007bff;
-  color: white;
+  background-color: #ffffff;
+  color: #333;
   border-radius: 4px;
   font-size: 16px;
   cursor: pointer;
@@ -57,7 +57,18 @@ input[type="text"] {
 }
 
 .page-content button:hover {
-  background-color: #0056b3;
+  border-color: #007bff;
+  background-color: #f8f9fa;
+  transform: translateX(5px);
+}*/
+
+.page-content button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 button:disabled {
@@ -100,24 +111,30 @@ button:disabled {
 .option-btn {
   width: 100%;
   padding: 12px;
-  border: 1px solid #ccc;
+  border: 2px solid #e0e0e0;
   border-radius: 4px;
-  background-color: #fff;
+  background-color: #ffffff;
   color: #333;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition: all 0.3s ease;
+  font-weight: 500;
 }
 
 .option-btn:hover {
-  background-color: #f0f2f5;
+  border-color: #007bff;
+  background-color: #f8f9fa;
+  transform: translateX(5px);
 }
 
 /* Estilo para la opción seleccionada */
 .option-btn.selected {
-  background-color: #dbeafe;
+  background-color: #007bff;
   border-color: #007bff;
-  font-weight: bold;
+  color: white;
+  font-weight: 600;
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }
 
 .submit-btn {
@@ -127,6 +144,7 @@ button:disabled {
   padding: 15px;
   font-size: 18px;
   background-color: #28a745;
+  color: #ffffff;
 }
 .submit-btn:hover {
   background-color: #218838;
@@ -174,6 +192,16 @@ button:disabled {
 }
 
 .generate-button {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+  flex-shrink: 0; /* Evita que el botón se encoja */
+}
+
+.generate-button:hover {
+  background-color: #005cbf;
+  border-color: #007bff;
+  color: white;
   flex-shrink: 0; /* Evita que el botón se encoja */
 }
 
@@ -235,4 +263,48 @@ button:disabled {
   border-color: #dc3545;
   color: #721c24;
   text-decoration: line-through;
+}
+
+/* Estilos para selector de etiquetas */
+.etiquetas-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.etiquetas-selector label {
+  font-weight: 500;
+  color: #333;
+}
+
+.etiquetas-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.etiqueta-btn {
+  padding: 0.5rem 1rem;
+  border: 2px solid;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  background-color: transparent;
+}
+
+.etiqueta-btn:hover {
+  transform: scale(1.05);
+}
+
+.etiqueta-btn.selected {
+  font-weight: 600;
+}
+
+.etiqueta-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

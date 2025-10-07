@@ -15,6 +15,7 @@ import {
   FiMenu,
   FiX,
   FiBarChart2,
+  FiTag,
 } from "react-icons/fi";
 
 type SidebarProps = {
@@ -49,7 +50,7 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
         }`}
       >
         <div className="sidebar-header">
-          <span className="sidebar-logo-text">ExamenIA 🚀</span>
+          <span className="sidebar-logo-text">ExamFlow 🚀</span>
           {/* Botón de cerrar solo para móvil */}
           <button className="mobile-close-btn" onClick={closeMobileMenu}>
             <FiX size={24} />
@@ -72,6 +73,14 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
           >
             <FiBarChart2 size={22} />
             <span>Estadísticas</span>
+          </Link>
+          <Link
+            href="/categorias"
+            className={pathname === "/categorias" ? "active" : ""}
+            onClick={closeMobileMenu}
+          >
+            <FiTag size={22} />
+            <span>Categorías</span>
           </Link>
           <Link
             href="/historial"
