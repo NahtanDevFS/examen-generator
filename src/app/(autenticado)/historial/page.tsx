@@ -15,6 +15,7 @@ import {
   FiX,
   FiTrash2,
   FiClock,
+  FiSearch,
 } from "react-icons/fi";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -64,6 +65,7 @@ export default function HistorialPage() {
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
 
   const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [filterDifficulty, setFilterDifficulty] = useState<string>("");
   const [filterType, setFilterType] = useState<string>("");
   const [filterCategoria, setFilterCategoria] = useState<string>("");
@@ -83,6 +85,7 @@ export default function HistorialPage() {
     applyFilters();
   }, [
     attempts,
+    searchTerm,
     filterDifficulty,
     filterType,
     filterCategoria,
@@ -147,6 +150,14 @@ export default function HistorialPage() {
   const applyFilters = () => {
     let filtered = [...attempts];
 
+    // Filtro por búsqueda (nombre del examen)
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter((a) =>
+        a.examenes?.topic.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+
     if (filterDifficulty) {
       filtered = filtered.filter(
         (a) => a.examenes?.difficulty === filterDifficulty
@@ -185,6 +196,7 @@ export default function HistorialPage() {
   };
 
   const clearFilters = () => {
+    setSearchTerm("");
     setFilterDifficulty("");
     setFilterType("");
     setFilterCategoria("");
@@ -195,6 +207,7 @@ export default function HistorialPage() {
 
   const hasActiveFilters = () => {
     return (
+      searchTerm ||
       filterDifficulty ||
       filterType ||
       filterCategoria ||
@@ -502,6 +515,29 @@ export default function HistorialPage() {
           >
             <FiTrash2 /> {deleteMode ? "Cancelar" : "Eliminar"}
           </button>
+        </div>
+      </div>
+
+      {/* BARRA DE BÚSQUEDA */}
+      <div className="search-bar-container">
+        <div className="search-bar-wrapper">
+          <FiSearch className="search-icon" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre del examen..."
+            className="search-input"
+          />
+          {searchTerm && (
+            <button
+              className="search-clear-btn"
+              onClick={() => setSearchTerm("")}
+              title="Limpiar búsqueda"
+            >
+              <FiX />
+            </button>
+          )}
         </div>
       </div>
 
