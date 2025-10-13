@@ -64,7 +64,9 @@ export default function HomePage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGrading, setIsGrading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [gradingProgress, setGradingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: string }>({});
   const [results, setResults] = useState<Results | null>(null);
@@ -357,15 +359,15 @@ export default function HomePage() {
       setResults(calculatedResults);
     } else {
       // Para preguntas abiertas, evaluar cada una con IA
-      setIsLoading(true);
-      setLoadingProgress(0);
+      setIsGrading(true);
+      setGradingProgress(0);
 
       try {
         const evaluations: { [key: number]: OpenQuestionEvaluation } = {};
         let totalScore = 0;
 
         for (let i = 0; i < questions.length; i++) {
-          setLoadingProgress((i / questions.length) * 100);
+          setGradingProgress(((i + 1) / questions.length) * 100);
 
           const response = await fetch("/api/evaluate-open", {
             method: "POST",
@@ -416,11 +418,11 @@ export default function HomePage() {
         }
 
         setResults(calculatedResults);
-        setLoadingProgress(100);
-        setIsLoading(false);
+        setGradingProgress(100);
       } catch (err: any) {
         setError("Error al evaluar las respuestas: " + err.message);
-        setIsLoading(false);
+      } finally {
+        setIsGrading(false);
       }
     }
   };
@@ -523,9 +525,9 @@ export default function HomePage() {
 
   const getTimerColor = () => {
     if (timeRemaining === null) return "#007bff";
-    if (timeRemaining > 300) return "#28a745"; // Verde si hay más de 5 minutos
-    if (timeRemaining > 60) return "#ffc107"; // Amarillo si hay más de 1 minuto
-    return "#dc3545"; // Rojo si hay menos de 1 minuto
+    if (timeRemaining > 300) return "#28a745";
+    if (timeRemaining > 60) return "#ffc107";
+    return "#dc3545";
   };
 
   if (loadingSession) {
@@ -534,7 +536,8 @@ export default function HomePage() {
 
   return (
     <>
-      {isLoading && (
+      {/* PANTALLA DE CARGA - GENERACIÓN DE EXAMEN */}
+      {isLoading && !isGrading && (
         <div className="loading-overlay">
           <div className="loading-particles">
             {[...Array(10)].map((_, i) => (
@@ -551,17 +554,11 @@ export default function HomePage() {
             </div>
 
             <h2 className="loading-title">
-              {results && examType === "pregunta_abierta"
-                ? "Evaluando respuestas"
-                : "Generando tu examen"}
-              <span className="dots"></span>
+              Generando tu examen<span className="dots"></span>
             </h2>
             <p className="loading-subtitle">
-              {results && examType === "pregunta_abierta"
-                ? "La IA está analizando tus respuestas..."
-                : `La IA está creando preguntas personalizadas sobre ${
-                    topic || "tu contenido"
-                  }`}
+              La IA está creando preguntas personalizadas sobre{" "}
+              {topic || "tu contenido"}
             </p>
 
             <div className="progress-bar-container">
@@ -581,6 +578,59 @@ export default function HomePage() {
             </div>
 
             <p className="loading-footer">Esto puede tardar unos segundos...</p>
+          </div>
+        </div>
+      )}
+
+      {/* PANTALLA DE CARGA - CALIFICACIÓN DEL EXAMEN */}
+      {isGrading && (
+        <div className="grading-overlay">
+          <div className="grading-particles">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="grading-particle"></div>
+            ))}
+          </div>
+
+          <div className="grading-content">
+            <div className="grading-icon-container">
+              <div className="grading-spinner"></div>
+              <div className="grading-icon">📊</div>
+            </div>
+
+            <h2 className="grading-title">
+              Calificando tu examen<span className="dots"></span>
+            </h2>
+            <p className="grading-subtitle">
+              La IA está evaluando tus respuestas y generando retroalimentación
+            </p>
+
+            <div className="grading-progress-container">
+              <div
+                className="grading-progress-bar"
+                style={{ width: `${gradingProgress}%` }}
+              ></div>
+            </div>
+
+            <p className="grading-counter">
+              Evaluando: {Math.round(gradingProgress)}% completado
+            </p>
+
+            <div className="grading-tips">
+              <div className="grading-tip">
+                <span className="grading-tip-icon">✨</span>
+                <span>Analizando cada respuesta cuidadosamente</span>
+              </div>
+              <div className="grading-tip">
+                <span className="grading-tip-icon">🤖</span>
+                <span>Generando retroalimentación personalizada</span>
+              </div>
+              <div className="grading-tip">
+                <span className="grading-tip-icon">📈</span>
+                <span>Calculando puntuación y recomendaciones</span>
+              </div>
+            </div>
+
+            <p className="grading-footer">Un momento, esto es rápido...</p>
           </div>
         </div>
       )}
@@ -820,8 +870,12 @@ export default function HomePage() {
               </article>
             ))}
 
-            <button className="submit-btn" onClick={handleSubmitExam}>
-              Calificar Examen
+            <button
+              className="submit-btn"
+              onClick={handleSubmitExam}
+              disabled={isGrading}
+            >
+              {isGrading ? "Calificando..." : "Calificar Examen"}
             </button>
           </section>
         )}
