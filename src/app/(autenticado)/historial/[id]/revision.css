@@ -1,4 +1,4 @@
-/* src/app/(autenticado)/historial/revision.css */
+/* src/app/(autenticado)/historial/[id]/revision.css */
 
 .back-link {
   display: inline-flex;
@@ -8,9 +8,48 @@
   color: #007bff;
   text-decoration: none;
   font-weight: 500;
+  transition: color 0.2s;
 }
+
 .back-link:hover {
+  color: #0056b3;
   text-decoration: underline;
+}
+
+.exam-info-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.exam-info-header h2 {
+  margin: 0 0 1rem 0;
+  color: #1a2b4d;
+}
+
+.exam-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #e7f3ff;
+  border: 1px solid #007bff;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #007bff;
+}
+
+.meta-badge.timer-badge {
+  background-color: #fff3cd;
+  border-color: #ffc107;
+  color: #856404;
 }
 
 .review-container {
@@ -25,10 +64,13 @@
   border-radius: 8px;
   padding: 1.5rem;
   border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .review-question-card p {
   margin-top: 0;
+  font-size: 1.1rem;
+  color: #1a2b4d;
 }
 
 .review-options {
@@ -43,9 +85,9 @@
   border: 1px solid #ccc;
   border-radius: 6px;
   transition: all 0.2s;
+  background-color: #f8f9fa;
 }
 
-/* Opción correcta (siempre se resalta en verde) */
 .review-option.correct {
   background-color: #e9f7ef;
   border-color: #28a745;
@@ -53,7 +95,6 @@
   font-weight: bold;
 }
 
-/* Opción incorrecta que marcó el usuario (se resalta en rojo) */
 .review-option.incorrect {
   background-color: #f8d7da;
   border-color: #dc3545;
@@ -61,8 +102,118 @@
   text-decoration: line-through;
 }
 
-/* Quitamos el hover del historial para que no parezca que la tarjeta es un botón */
-.history-item-link {
-  text-decoration: none;
-  color: inherit;
+/* RESPUESTAS ABIERTAS */
+.open-answer-review {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.user-answer-section h4,
+.model-answer h4 {
+  margin: 0 0 0.5rem 0;
+  color: #1a2b4d;
+  font-size: 1rem;
+}
+
+.user-answer-text {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.model-answer {
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.model-answer-text {
+  background-color: #e9f7ef;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #28a745;
+  margin: 0;
+  font-style: italic;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* BOTÓN DE EXPLICACIÓN */
+.explain-btn {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.explain-btn:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.explain-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.explanation-box {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  background-color: #e7f3ff;
+  border-left: 4px solid #17a2b8;
+  border-radius: 6px;
+  animation: slideDown 0.3s ease;
+}
+
+.explanation-box h4 {
+  margin: 0 0 0.75rem 0;
+  color: #1a2b4d;
+}
+
+.explanation-box p {
+  margin: 0;
+  line-height: 1.7;
+  color: #333;
+  white-space: pre-wrap;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .review-question-card {
+    padding: 1rem;
+  }
+
+  .exam-meta {
+    flex-direction: column;
+  }
+
+  .meta-badge {
+    width: 100%;
+    justify-content: center;
+  }
 }

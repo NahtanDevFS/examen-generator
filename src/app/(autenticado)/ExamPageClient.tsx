@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter, useSearchParams } from "next/navigation";
+import { FiUpload, FiX, FiClock, FiHelpCircle } from "react-icons/fi";
 import "./loading-screen.css";
 
 type Question = {
   question: string;
-  options: string[];
+  options?: string[];
   answer: string;
 };
 
@@ -16,6 +17,13 @@ type Results = {
   score: number;
   correctAnswers: number;
   incorrectAnswers: number;
+};
+
+type OpenQuestionEvaluation = {
+  score: number;
+  feedback: string;
+  strengths: string;
+  improvements: string;
 };
 
 type Categoria = {
@@ -30,11 +38,11 @@ type Etiqueta = {
 
 const LOADING_TIPS = [
   { icon: "💡", text: "Concéntrate y lee cada pregunta cuidadosamente" },
-  { icon: "⏱️", text: "No hay límite de tiempo, tómate el que necesites" },
+  { icon: "⏱️", text: "Administra bien tu tiempo si es cronometrado" },
   { icon: "✅", text: "Puedes cambiar tus respuestas antes de calificar" },
   { icon: "📊", text: "Al finalizar verás un análisis detallado" },
   { icon: "🔄", text: "Podrás repetir este examen cuando quieras" },
-  { icon: "🎯", text: "Cada pregunta tiene solo una respuesta correcta" },
+  { icon: "🎯", text: "Lee todas las opciones antes de responder" },
 ];
 
 export default function HomePage() {
@@ -47,15 +55,28 @@ export default function HomePage() {
   const [examType, setExamType] = useState("opcion_multiple");
   const [difficulty, setDifficulty] = useState("principiante");
   const [questionCount, setQuestionCount] = useState(10);
+  const [hasTimer, setHasTimer] = useState(false);
+  const [timerMinutes, setTimerMinutes] = useState(30);
 
   const [currentExamId, setCurrentExamId] = useState<number | null>(null);
   const [topic, setTopic] = useState("");
+  const [sourceText, setSourceText] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: string }>({});
   const [results, setResults] = useState<Results | null>(null);
+  const [openEvaluations, setOpenEvaluations] = useState<{
+    [key: number]: OpenQuestionEvaluation;
+  }>({});
+
+  // Timer states
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [timerActive, setTimerActive] = useState(false);
+  const [timeSpent, setTimeSpent] = useState(0);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Estados para categorías y etiquetas
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -64,6 +85,14 @@ export default function HomePage() {
     null
   );
   const [selectedEtiquetas, setSelectedEtiquetas] = useState<number[]>([]);
+
+  // Estados para explicaciones
+  const [loadingExplanation, setLoadingExplanation] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [explanations, setExplanations] = useState<{ [key: number]: string }>(
+    {}
+  );
 
   useEffect(() => {
     const getSessionAndLoadExam = async () => {
@@ -75,7 +104,6 @@ export default function HomePage() {
       setSession(data.session);
       setLoadingSession(false);
 
-      // Cargar categorías y etiquetas
       fetchCategoriasYEtiquetas(data.session.user.id);
 
       const examIdToLoad = searchParams.get("examId");
@@ -85,6 +113,30 @@ export default function HomePage() {
     };
     getSessionAndLoadExam();
   }, [supabase, router, searchParams]);
+
+  // Timer effect
+  useEffect(() => {
+    if (timerActive && timeRemaining !== null && timeRemaining > 0) {
+      timerIntervalRef.current = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev !== null && prev > 0) {
+            return prev - 1;
+          }
+          return prev;
+        });
+        setTimeSpent((prev) => prev + 1);
+      }, 1000);
+    } else if (timeRemaining === 0 && timerActive) {
+      setTimerActive(false);
+      handleSubmitExam();
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [timerActive, timeRemaining]);
 
   const fetchCategoriasYEtiquetas = async (userId: string) => {
     const { data: cats } = await supabase
@@ -109,9 +161,7 @@ export default function HomePage() {
 
     const { data, error } = await supabase
       .from("examenes")
-      .select(
-        "id, topic, questions, exam_type, difficulty, categoria_id, etiquetas"
-      )
+      .select("*")
       .eq("id", examId)
       .single();
 
@@ -128,9 +178,20 @@ export default function HomePage() {
       setDifficulty(data.difficulty || "principiante");
       setSelectedCategoria(data.categoria_id);
       setSelectedEtiquetas(data.etiquetas || []);
+      setHasTimer(data.has_timer || false);
+      setTimerMinutes(data.timer_minutes || 30);
       setResults(null);
       setUserAnswers({});
+      setOpenEvaluations({});
+      setExplanations({});
       setLoadingProgress(100);
+
+      // Iniciar timer si el examen lo tiene
+      if (data.has_timer && data.timer_minutes) {
+        setTimeRemaining(data.timer_minutes * 60);
+        setTimerActive(true);
+        setTimeSpent(0);
+      }
 
       setTimeout(() => {
         setIsLoading(false);
@@ -139,9 +200,39 @@ export default function HomePage() {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedFile(file);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (file.type === "application/pdf") {
+        setError("Para PDFs, por favor copia y pega el texto manualmente.");
+        setUploadedFile(null);
+      } else {
+        setSourceText(text);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  const removeFile = () => {
+    setUploadedFile(null);
+    setSourceText("");
+  };
+
   const handleGenerateExam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) return;
+
+    if (!topic && !sourceText) {
+      setError("Debes proporcionar un tema o subir/pegar texto.");
+      return;
+    }
 
     setIsLoading(true);
     setLoadingProgress(0);
@@ -150,19 +241,21 @@ export default function HomePage() {
     setUserAnswers({});
     setResults(null);
     setCurrentExamId(null);
+    setOpenEvaluations({});
+    setExplanations({});
 
     try {
-      // Simular progreso inicial
       setLoadingProgress(10);
 
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic,
+          topic: topic || "Contenido proporcionado",
           type: examType,
           difficulty: difficulty,
           count: questionCount,
+          sourceText: sourceText || undefined,
         }),
       });
 
@@ -179,12 +272,15 @@ export default function HomePage() {
         .from("examenes")
         .insert({
           user_id: session.user.id,
-          topic: topic,
+          topic: topic || "Contenido personalizado",
           questions: generatedQuestions,
           exam_type: examType,
           difficulty: difficulty,
           categoria_id: selectedCategoria,
           etiquetas: selectedEtiquetas,
+          source_text: sourceText || null,
+          has_timer: hasTimer,
+          timer_minutes: hasTimer ? timerMinutes : null,
         })
         .select("id")
         .single();
@@ -198,7 +294,13 @@ export default function HomePage() {
       setCurrentExamId(examData.id);
       setLoadingProgress(100);
 
-      // Pequeña pausa antes de cerrar la pantalla de carga
+      // Iniciar timer si está activado
+      if (hasTimer) {
+        setTimeRemaining(timerMinutes * 60);
+        setTimerActive(true);
+        setTimeSpent(0);
+      }
+
       setTimeout(() => {
         setIsLoading(false);
       }, 500);
@@ -211,30 +313,116 @@ export default function HomePage() {
 
   const handleSubmitExam = async () => {
     if (!session || currentExamId === null) return;
-    let correct = 0;
-    questions.forEach((question, index) => {
-      if (userAnswers[index] === question.answer) {
-        correct++;
-      }
-    });
-    const calculatedResults = {
-      score: (correct / questions.length) * 100,
-      correctAnswers: correct,
-      incorrectAnswers: questions.length - correct,
-    };
-    const { error: attemptError } = await supabase
-      .from("intentos_examen")
-      .insert({
-        user_id: session.user.id,
-        examen_id: currentExamId,
-        score_correct: calculatedResults.correctAnswers,
-        score_incorrect: calculatedResults.incorrectAnswers,
-        user_answers: userAnswers,
-      });
-    if (attemptError) {
-      setError(`Error al guardar tu resultado: ${attemptError.message}`);
+
+    // Detener el timer
+    setTimerActive(false);
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
     }
-    setResults(calculatedResults);
+
+    let correct = 0;
+    let incorrect = 0;
+
+    // Para preguntas de opción múltiple y verdadero/falso
+    if (examType !== "pregunta_abierta") {
+      questions.forEach((question, index) => {
+        if (userAnswers[index] === question.answer) {
+          correct++;
+        } else {
+          incorrect++;
+        }
+      });
+
+      const calculatedResults = {
+        score: (correct / questions.length) * 100,
+        correctAnswers: correct,
+        incorrectAnswers: incorrect,
+      };
+
+      const { error: attemptError } = await supabase
+        .from("intentos_examen")
+        .insert({
+          user_id: session.user.id,
+          examen_id: currentExamId,
+          score_correct: calculatedResults.correctAnswers,
+          score_incorrect: calculatedResults.incorrectAnswers,
+          user_answers: userAnswers,
+          time_spent_seconds: timeSpent,
+        });
+
+      if (attemptError) {
+        setError(`Error al guardar tu resultado: ${attemptError.message}`);
+      }
+
+      setResults(calculatedResults);
+    } else {
+      // Para preguntas abiertas, evaluar cada una con IA
+      setIsLoading(true);
+      setLoadingProgress(0);
+
+      try {
+        const evaluations: { [key: number]: OpenQuestionEvaluation } = {};
+        let totalScore = 0;
+
+        for (let i = 0; i < questions.length; i++) {
+          setLoadingProgress((i / questions.length) * 100);
+
+          const response = await fetch("/api/evaluate-open", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: questions[i].question,
+              userAnswer: userAnswers[i] || "",
+              correctAnswer: questions[i].answer,
+              topic: topic,
+            }),
+          });
+
+          if (response.ok) {
+            const evaluation = await response.json();
+            evaluations[i] = evaluation;
+            totalScore += evaluation.score;
+
+            if (evaluation.score >= 60) {
+              correct++;
+            } else {
+              incorrect++;
+            }
+          }
+        }
+
+        setOpenEvaluations(evaluations);
+
+        const avgScore = totalScore / questions.length;
+        const calculatedResults = {
+          score: avgScore,
+          correctAnswers: correct,
+          incorrectAnswers: incorrect,
+        };
+
+        const { error: attemptError } = await supabase
+          .from("intentos_examen")
+          .insert({
+            user_id: session.user.id,
+            examen_id: currentExamId,
+            score_correct: calculatedResults.correctAnswers,
+            score_incorrect: calculatedResults.incorrectAnswers,
+            user_answers: userAnswers,
+            time_spent_seconds: timeSpent,
+          });
+
+        if (attemptError) {
+          setError(`Error al guardar tu resultado: ${attemptError.message}`);
+        }
+
+        setResults(calculatedResults);
+        setLoadingProgress(100);
+        setIsLoading(false);
+      } catch (err: any) {
+        setError("Error al evaluar las respuestas: " + err.message);
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleAnswerSelect = (
@@ -244,14 +432,63 @@ export default function HomePage() {
     setUserAnswers((prev) => ({ ...prev, [questionIndex]: selectedOption }));
   };
 
+  const handleOpenAnswerChange = (questionIndex: number, value: string) => {
+    setUserAnswers((prev) => ({ ...prev, [questionIndex]: value }));
+  };
+
+  const handleExplainQuestion = async (questionIndex: number) => {
+    if (loadingExplanation[questionIndex] || explanations[questionIndex])
+      return;
+
+    setLoadingExplanation((prev) => ({ ...prev, [questionIndex]: true }));
+
+    try {
+      const q = questions[questionIndex];
+      const response = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.answer,
+          userAnswer: userAnswers[questionIndex],
+          topic: topic,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setExplanations((prev) => ({
+          ...prev,
+          [questionIndex]: data.explanation,
+        }));
+      } else {
+        setError("No se pudo cargar la explicación");
+      }
+    } catch (err) {
+      setError("Error al obtener la explicación");
+    } finally {
+      setLoadingExplanation((prev) => ({ ...prev, [questionIndex]: false }));
+    }
+  };
+
   const handleReset = () => {
     setTopic("");
+    setSourceText("");
+    setUploadedFile(null);
     setQuestions([]);
     setUserAnswers({});
     setResults(null);
     setCurrentExamId(null);
     setSelectedCategoria(null);
     setSelectedEtiquetas([]);
+    setHasTimer(false);
+    setTimerMinutes(30);
+    setTimeRemaining(null);
+    setTimerActive(false);
+    setTimeSpent(0);
+    setOpenEvaluations({});
+    setExplanations({});
   };
 
   const toggleEtiqueta = (etiquetaId: number) => {
@@ -278,16 +515,27 @@ export default function HomePage() {
     return colors[index % colors.length];
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const getTimerColor = () => {
+    if (timeRemaining === null) return "#007bff";
+    if (timeRemaining > 300) return "#28a745"; // Verde si hay más de 5 minutos
+    if (timeRemaining > 60) return "#ffc107"; // Amarillo si hay más de 1 minuto
+    return "#dc3545"; // Rojo si hay menos de 1 minuto
+  };
+
   if (loadingSession) {
     return <div style={{ padding: "20px" }}>Cargando sesión...</div>;
   }
 
   return (
     <>
-      {/* PANTALLA DE CARGA INMERSIVA */}
       {isLoading && (
         <div className="loading-overlay">
-          {/* Partículas de fondo */}
           <div className="loading-particles">
             {[...Array(10)].map((_, i) => (
               <div key={i} className="particle"></div>
@@ -295,7 +543,6 @@ export default function HomePage() {
           </div>
 
           <div className="loading-content">
-            {/* Ícono animado */}
             <div className="loading-icon-container">
               <div className="pulse-ring"></div>
               <div className="pulse-ring"></div>
@@ -303,15 +550,20 @@ export default function HomePage() {
               <div className="brain-icon">🧠</div>
             </div>
 
-            {/* Título y subtítulo */}
             <h2 className="loading-title">
-              Generando tu examen<span className="dots"></span>
+              {results && examType === "pregunta_abierta"
+                ? "Evaluando respuestas"
+                : "Generando tu examen"}
+              <span className="dots"></span>
             </h2>
             <p className="loading-subtitle">
-              La IA está creando preguntas personalizadas sobre {topic}
+              {results && examType === "pregunta_abierta"
+                ? "La IA está analizando tus respuestas..."
+                : `La IA está creando preguntas personalizadas sobre ${
+                    topic || "tu contenido"
+                  }`}
             </p>
 
-            {/* Barra de progreso */}
             <div className="progress-bar-container">
               <div
                 className="progress-bar"
@@ -319,7 +571,6 @@ export default function HomePage() {
               ></div>
             </div>
 
-            {/* Tips útiles */}
             <div className="loading-tips">
               {LOADING_TIPS.slice(0, 3).map((tip, index) => (
                 <div key={index} className="loading-tip">
@@ -329,26 +580,81 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* Footer */}
             <p className="loading-footer">Esto puede tardar unos segundos...</p>
           </div>
         </div>
       )}
 
-      {/* CONTENIDO PRINCIPAL */}
-      <div className="page-content">
+      {/* TIMER FIJO Y VISIBLE */}
+      {timerActive && timeRemaining !== null && (
+        <div
+          className="timer-sticky-container"
+          style={{ borderColor: getTimerColor() }}
+        >
+          <div className="timer-content">
+            <FiClock size={24} style={{ color: getTimerColor() }} />
+            <span className="timer-text" style={{ color: getTimerColor() }}>
+              {formatTime(timeRemaining)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className={`page-content ${timerActive ? "has-timer" : ""}`}>
         <h1>Generador de Exámenes con IA 🧠</h1>
 
+        {/* FORMULARIO DE GENERACIÓN */}
         {questions.length === 0 && !results && (
           <form onSubmit={handleGenerateExam} className="generator-form">
             <input
               type="text"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="Escribe un tema (ej: JavaScript)"
+              placeholder="Tema del examen (ej: JavaScript, Historia)"
               disabled={isLoading}
               className="topic-input"
             />
+
+            {/* SUBIR ARCHIVO O TEXTO */}
+            <div className="source-text-section">
+              <label className="upload-label">
+                <FiUpload /> Subir archivo o pegar texto (opcional)
+              </label>
+              <div className="upload-container">
+                {!uploadedFile && !sourceText && (
+                  <label className="file-upload-btn">
+                    <input
+                      type="file"
+                      accept=".txt,.md"
+                      onChange={handleFileUpload}
+                      disabled={isLoading}
+                      style={{ display: "none" }}
+                    />
+                    Seleccionar archivo (.txt, .md)
+                  </label>
+                )}
+                {uploadedFile && (
+                  <div className="uploaded-file">
+                    <span>📄 {uploadedFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={removeFile}
+                      className="remove-file-btn"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <textarea
+                value={sourceText}
+                onChange={(e) => setSourceText(e.target.value)}
+                placeholder="O pega aquí el texto del que quieres generar el examen..."
+                disabled={isLoading}
+                className="source-textarea"
+                rows={4}
+              />
+            </div>
 
             <select
               value={examType}
@@ -356,8 +662,9 @@ export default function HomePage() {
               disabled={isLoading}
               className="type-select"
             >
-              <option value="opcion_multiple">Múltiple</option>
-              <option value="verdadero_falso">V o F</option>
+              <option value="opcion_multiple">Opción Múltiple</option>
+              <option value="verdadero_falso">Verdadero o Falso</option>
+              <option value="pregunta_abierta">Pregunta Abierta</option>
             </select>
 
             <select
@@ -383,7 +690,6 @@ export default function HomePage() {
               <option value={20}>20 Preguntas</option>
             </select>
 
-            {/* SELECTOR DE CATEGORÍA */}
             <select
               value={selectedCategoria || ""}
               onChange={(e) =>
@@ -402,7 +708,33 @@ export default function HomePage() {
               ))}
             </select>
 
-            {/* SELECTOR DE ETIQUETAS */}
+            {/* TEMPORIZADOR */}
+            <div className="timer-section">
+              <label className="timer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={hasTimer}
+                  onChange={(e) => setHasTimer(e.target.checked)}
+                  disabled={isLoading}
+                />
+                <span>Agregar límite de tiempo ⏱️</span>
+              </label>
+              {hasTimer && (
+                <div className="timer-input-group">
+                  <label>Minutos:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="180"
+                    value={timerMinutes}
+                    onChange={(e) => setTimerMinutes(parseInt(e.target.value))}
+                    disabled={isLoading}
+                    className="timer-input"
+                  />
+                </div>
+              )}
+            </div>
+
             {etiquetas.length > 0 && (
               <div className="etiquetas-selector">
                 <label>Etiquetas (opcional):</label>
@@ -438,16 +770,20 @@ export default function HomePage() {
               disabled={isLoading}
               className="generate-button"
             >
-              {isLoading ? "Generando..." : "Generar"}
+              {isLoading ? "Generando..." : "Generar Examen"}
             </button>
           </form>
         )}
 
         {error && <p className="error">{error}</p>}
 
+        {/* EXAMEN */}
         {questions.length > 0 && !results && (
           <section className="exam-container">
-            <h2>Examen sobre: {topic}</h2>
+            <div className="exam-header">
+              <h2>Examen sobre: {topic}</h2>
+            </div>
+
             {questions.map((q, index) => (
               <article key={index} className="question-card">
                 <p>
@@ -455,27 +791,42 @@ export default function HomePage() {
                     {index + 1}. {q.question}
                   </strong>
                 </p>
-                <div className="options-container">
-                  {q.options.map((option, i) => (
-                    <button
-                      key={i}
-                      className={`option-btn ${
-                        userAnswers[index] === option ? "selected" : ""
-                      }`}
-                      onClick={() => handleAnswerSelect(index, option)}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
+
+                {examType === "pregunta_abierta" ? (
+                  <textarea
+                    value={userAnswers[index] || ""}
+                    onChange={(e) =>
+                      handleOpenAnswerChange(index, e.target.value)
+                    }
+                    placeholder="Escribe tu respuesta aquí..."
+                    className="open-answer-textarea"
+                    rows={6}
+                  />
+                ) : (
+                  <div className="options-container">
+                    {q.options?.map((option, i) => (
+                      <button
+                        key={i}
+                        className={`option-btn ${
+                          userAnswers[index] === option ? "selected" : ""
+                        }`}
+                        onClick={() => handleAnswerSelect(index, option)}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </article>
             ))}
+
             <button className="submit-btn" onClick={handleSubmitExam}>
               Calificar Examen
             </button>
           </section>
         )}
 
+        {/* RESULTADOS */}
         {results && (
           <section className="results-container">
             <h2>Resultados 📊</h2>
@@ -488,15 +839,25 @@ export default function HomePage() {
             <p className="incorrect">
               Respuestas Incorrectas: {results.incorrectAnswers}
             </p>
+            {timeSpent > 0 && (
+              <p className="time-info">
+                Tiempo empleado: {formatTime(timeSpent)}
+              </p>
+            )}
             <button className="submit-btn" onClick={handleReset}>
               Crear otro examen
             </button>
+
             <div className="review-section">
               <h3 className="review-title">Revisión de Respuestas</h3>
               <div className="review-container">
                 {questions.map((q, index) => {
                   const userAnswer = userAnswers[index];
-                  const isCorrect = userAnswer === q.answer;
+                  const isCorrect =
+                    examType === "pregunta_abierta"
+                      ? openEvaluations[index]?.score >= 60
+                      : userAnswer === q.answer;
+
                   return (
                     <div key={index} className="review-question-card">
                       <p>
@@ -504,22 +865,94 @@ export default function HomePage() {
                           {index + 1}. {q.question}
                         </strong>
                       </p>
-                      <div className="review-options">
-                        {q.options.map((option, i) => {
-                          let className = "review-option";
-                          if (option === q.answer) {
-                            className += " correct";
-                          }
-                          if (option === userAnswer && !isCorrect) {
-                            className += " incorrect";
-                          }
-                          return (
-                            <div key={i} className={className}>
-                              {option}
+
+                      {examType === "pregunta_abierta" ? (
+                        <div className="open-answer-review">
+                          <div className="user-answer-section">
+                            <h4>Tu respuesta:</h4>
+                            <p className="user-answer-text">
+                              {userAnswer || "Sin respuesta"}
+                            </p>
+                          </div>
+
+                          {openEvaluations[index] && (
+                            <div className="ai-evaluation">
+                              <div className="evaluation-score">
+                                <span
+                                  className={`score-badge ${
+                                    openEvaluations[index].score >= 80
+                                      ? "excellent"
+                                      : openEvaluations[index].score >= 60
+                                      ? "good"
+                                      : "needs-improvement"
+                                  }`}
+                                >
+                                  {openEvaluations[index].score}/100
+                                </span>
+                              </div>
+
+                              <div className="evaluation-feedback">
+                                <h4>📝 Retroalimentación:</h4>
+                                <p>{openEvaluations[index].feedback}</p>
+                              </div>
+
+                              <div className="evaluation-strengths">
+                                <h4>✅ Fortalezas:</h4>
+                                <p>{openEvaluations[index].strengths}</p>
+                              </div>
+
+                              <div className="evaluation-improvements">
+                                <h4>💡 Sugerencias de mejora:</h4>
+                                <p>{openEvaluations[index].improvements}</p>
+                              </div>
+
+                              <div className="model-answer">
+                                <h4>Respuesta modelo:</h4>
+                                <p className="model-answer-text">{q.answer}</p>
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="review-options">
+                            {q.options?.map((option, i) => {
+                              let className = "review-option";
+                              if (option === q.answer) {
+                                className += " correct";
+                              }
+                              if (option === userAnswer && !isCorrect) {
+                                className += " incorrect";
+                              }
+                              return (
+                                <div key={i} className={className}>
+                                  {option}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            className="explain-btn"
+                            onClick={() => handleExplainQuestion(index)}
+                            disabled={loadingExplanation[index]}
+                          >
+                            <FiHelpCircle />
+                            {loadingExplanation[index]
+                              ? "Cargando..."
+                              : explanations[index]
+                              ? "Ocultar explicación"
+                              : "¿Por qué esta respuesta?"}
+                          </button>
+
+                          {explanations[index] && (
+                            <div className="explanation-box">
+                              <h4>📚 Explicación:</h4>
+                              <p>{explanations[index]}</p>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   );
                 })}

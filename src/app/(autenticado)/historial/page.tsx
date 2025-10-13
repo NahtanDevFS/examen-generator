@@ -14,6 +14,7 @@ import {
   FiFilter,
   FiX,
   FiTrash2,
+  FiClock,
 } from "react-icons/fi";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,12 +29,15 @@ type Attempt = {
   score_correct: number;
   score_incorrect: number;
   examen_id: number;
+  time_spent_seconds: number | null;
   examenes: {
     topic: string;
     exam_type: string;
     difficulty: string | null;
     categoria_id: number | null;
     etiquetas: number[];
+    has_timer: boolean | null;
+    timer_minutes: number | null;
   } | null;
 };
 
@@ -56,11 +60,9 @@ export default function HistorialPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Estados para categorías y etiquetas
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
 
-  // Estados para filtros
   const [showFilters, setShowFilters] = useState(false);
   const [filterDifficulty, setFilterDifficulty] = useState<string>("");
   const [filterType, setFilterType] = useState<string>("");
@@ -69,7 +71,6 @@ export default function HistorialPage() {
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
 
-  // Estados para selección múltiple de exportación y eliminación
   const [selectedAttempts, setSelectedAttempts] = useState<number[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
@@ -90,7 +91,6 @@ export default function HistorialPage() {
     filterDateTo,
   ]);
 
-  // Auto-ocultar mensajes después de 5 segundos
   useEffect(() => {
     if (error || successMessage) {
       const timer = setTimeout(() => {
@@ -106,7 +106,6 @@ export default function HistorialPage() {
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
-      // Cargar categorías y etiquetas
       const { data: cats } = await supabase
         .from("categorias")
         .select("*")
@@ -120,7 +119,6 @@ export default function HistorialPage() {
       setCategorias(cats || []);
       setEtiquetas(tags || []);
 
-      // Cargar historial con relaciones
       const { data, error } = await supabase
         .from("intentos_examen")
         .select(
@@ -129,8 +127,9 @@ export default function HistorialPage() {
             created_at,
             score_correct,
             score_incorrect,
-            examen_id, 
-            examenes ( topic, exam_type, difficulty, categoria_id, etiquetas )
+            examen_id,
+            time_spent_seconds,
+            examenes ( topic, exam_type, difficulty, categoria_id, etiquetas, has_timer, timer_minutes )
           `
         )
         .eq("user_id", user.id)
@@ -210,6 +209,26 @@ export default function HistorialPage() {
     return s.charAt(0).toUpperCase() + s.slice(1);
   };
 
+  const formatTime = (seconds: number | null) => {
+    if (!seconds) return "N/A";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
+  const getExamTypeLabel = (type: string) => {
+    switch (type) {
+      case "opcion_multiple":
+        return "Opción Múltiple";
+      case "verdadero_falso":
+        return "Verdadero o Falso";
+      case "pregunta_abierta":
+        return "Pregunta Abierta";
+      default:
+        return type;
+    }
+  };
+
   const handleRepeatExam = (e: React.MouseEvent, examId: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -245,7 +264,6 @@ export default function HistorialPage() {
       .map((e) => e.nombre);
   };
 
-  // FUNCIONES DE ELIMINACIÓN
   const handleDeleteSingle = async (e: React.MouseEvent, attemptId: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -310,7 +328,6 @@ export default function HistorialPage() {
     setSelectedAttempts([]);
   };
 
-  // EXPORTAR A PDF
   const exportToPDF = () => {
     const attemptsToExport = selectMode
       ? filteredAttempts.filter((a) => selectedAttempts.includes(a.id))
@@ -342,14 +359,13 @@ export default function HistorialPage() {
       return [
         new Date(attempt.created_at).toLocaleDateString(),
         attempt.examenes?.topic || "N/A",
-        attempt.examenes?.exam_type === "opcion_multiple"
-          ? "Múltiple"
-          : "V o F",
+        getExamTypeLabel(attempt.examenes?.exam_type || ""),
         capitalize(attempt.examenes?.difficulty ?? null),
         getCategoriaNombre(attempt.examenes?.categoria_id || null),
         `${percentage}%`,
         attempt.score_correct.toString(),
         attempt.score_incorrect.toString(),
+        formatTime(attempt.time_spent_seconds),
       ];
     });
 
@@ -365,10 +381,11 @@ export default function HistorialPage() {
           "Puntuación",
           "Correctas",
           "Incorrectas",
+          "Tiempo",
         ],
       ],
       body: tableData,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [0, 123, 255] },
     });
 
@@ -380,7 +397,6 @@ export default function HistorialPage() {
     }
   };
 
-  // EXPORTAR A EXCEL
   const exportToExcel = () => {
     const attemptsToExport = selectMode
       ? filteredAttempts.filter((a) => selectedAttempts.includes(a.id))
@@ -399,10 +415,7 @@ export default function HistorialPage() {
       return {
         Fecha: new Date(attempt.created_at).toLocaleDateString(),
         Tema: attempt.examenes?.topic || "N/A",
-        Tipo:
-          attempt.examenes?.exam_type === "opcion_multiple"
-            ? "Múltiple"
-            : "V o F",
+        Tipo: getExamTypeLabel(attempt.examenes?.exam_type || ""),
         Dificultad: capitalize(attempt.examenes?.difficulty ?? null),
         Categoría: getCategoriaNombre(attempt.examenes?.categoria_id || null),
         Etiquetas: getEtiquetasNombres(attempt.examenes?.etiquetas || []).join(
@@ -412,6 +425,9 @@ export default function HistorialPage() {
         "Respuestas Correctas": attempt.score_correct,
         "Respuestas Incorrectas": attempt.score_incorrect,
         "Total Preguntas": total,
+        "Tiempo Empleado": formatTime(attempt.time_spent_seconds),
+        "Tenía Temporizador": attempt.examenes?.has_timer ? "Sí" : "No",
+        "Tiempo Límite (min)": attempt.examenes?.timer_minutes || "N/A",
       };
     });
 
@@ -422,7 +438,7 @@ export default function HistorialPage() {
     const wscols = [
       { wch: 12 },
       { wch: 25 },
-      { wch: 10 },
+      { wch: 15 },
       { wch: 12 },
       { wch: 20 },
       { wch: 20 },
@@ -430,6 +446,9 @@ export default function HistorialPage() {
       { wch: 18 },
       { wch: 20 },
       { wch: 15 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 18 },
     ];
     ws["!cols"] = wscols;
 
@@ -451,7 +470,6 @@ export default function HistorialPage() {
 
   return (
     <div className="page-content historial-page-container">
-      {/* MENSAJES DE ALERTA */}
       {error && (
         <div className="alert alert-error">
           <FiX className="alert-icon" />
@@ -487,7 +505,6 @@ export default function HistorialPage() {
         </div>
       </div>
 
-      {/* PANEL DE FILTROS */}
       {showFilters && (
         <div className="filters-panel">
           <div className="filters-grid">
@@ -500,6 +517,7 @@ export default function HistorialPage() {
                 <option value="">Todos</option>
                 <option value="opcion_multiple">Opción Múltiple</option>
                 <option value="verdadero_falso">Verdadero o Falso</option>
+                <option value="pregunta_abierta">Pregunta Abierta</option>
               </select>
             </div>
 
@@ -573,7 +591,6 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* MODO SELECCIÓN PARA EXPORTAR */}
       {selectMode && (
         <div className="selection-bar">
           <div className="selection-info">
@@ -607,7 +624,6 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* MODO ELIMINACIÓN */}
       {deleteMode && (
         <div className="selection-bar delete-bar">
           <div className="selection-info">
@@ -634,12 +650,10 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* CONTADOR DE RESULTADOS */}
       <div className="results-counter">
         Mostrando {filteredAttempts.length} de {attempts.length} registros
       </div>
 
-      {/* LISTA DE EXÁMENES */}
       {filteredAttempts.length === 0 ? (
         <p className="empty-state">
           {hasActiveFilters()
@@ -683,9 +697,7 @@ export default function HistorialPage() {
                   <div className="item-details">
                     <span className="detail-tag type">
                       <FiFileText />{" "}
-                      {attempt.examenes?.exam_type === "opcion_multiple"
-                        ? "Opción Múltiple"
-                        : "V o F"}
+                      {getExamTypeLabel(attempt.examenes?.exam_type || "")}
                     </span>
                     {attempt.examenes?.difficulty && (
                       <span
@@ -697,6 +709,11 @@ export default function HistorialPage() {
                     {attempt.examenes?.categoria_id && (
                       <span className="detail-tag categoria">
                         📁 {getCategoriaNombre(attempt.examenes.categoria_id)}
+                      </span>
+                    )}
+                    {attempt.examenes?.has_timer && (
+                      <span className="detail-tag timer">
+                        <FiClock /> {attempt.examenes.timer_minutes} min
                       </span>
                     )}
                   </div>
@@ -723,6 +740,12 @@ export default function HistorialPage() {
                       <FiXCircle className="icon incorrect" /> Errores:{" "}
                       {attempt.score_incorrect}
                     </p>
+                    {attempt.time_spent_seconds && (
+                      <p>
+                        <FiClock className="icon" /> Tiempo:{" "}
+                        {formatTime(attempt.time_spent_seconds)}
+                      </p>
+                    )}
                   </div>
                   <div className="item-footer">
                     <FiCalendar className="icon" />
@@ -761,7 +784,6 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* BOTONES DE EXPORTACIÓN RÁPIDA */}
       {!selectMode && !deleteMode && filteredAttempts.length > 0 && (
         <div className="quick-export">
           <button className="btn-quick-export" onClick={exportToPDF}>

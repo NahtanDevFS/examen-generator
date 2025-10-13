@@ -4,35 +4,43 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { FiArrowLeft } from "react-icons/fi";
-import "./revision.css"; // Crearemos este archivo a continuación
+import { FiArrowLeft, FiHelpCircle } from "react-icons/fi";
+import "./revision.css";
 
-// Tipo para las preguntas que vienen del examen original
 type Question = {
   question: string;
-  options: string[];
+  options?: string[];
   answer: string;
 };
 
-// Tipo para los datos completos de la revisión
 type ReviewData = {
   id: number;
   created_at: string;
   user_answers: { [key: number]: string };
+  time_spent_seconds: number | null;
   examenes: {
     topic: string;
     questions: Question[];
+    exam_type: string;
+    has_timer: boolean | null;
+    timer_minutes: number | null;
   } | null;
 };
 
 export default function RevisionPage() {
   const supabase = createClient();
-  const params = useParams(); // Hook para leer parámetros de la URL, como el [id]
+  const params = useParams();
   const { id } = params;
 
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [explanations, setExplanations] = useState<{ [key: number]: string }>(
+    {}
+  );
 
   useEffect(() => {
     if (id) {
@@ -44,11 +52,12 @@ export default function RevisionPage() {
             id,
             created_at,
             user_answers,
-            examenes ( topic, questions )
+            time_spent_seconds,
+            examenes ( topic, questions, exam_type, has_timer, timer_minutes )
           `
           )
-          .eq("id", id) // Buscamos el intento específico por su ID
-          .single(); // Esperamos solo un resultado
+          .eq("id", id)
+          .single();
 
         if (error) {
           setError("No se pudo cargar la revisión del examen.");
@@ -61,6 +70,53 @@ export default function RevisionPage() {
       fetchReviewData();
     }
   }, [id, supabase]);
+
+  const handleExplainQuestion = async (questionIndex: number) => {
+    if (
+      !reviewData ||
+      loadingExplanation[questionIndex] ||
+      explanations[questionIndex]
+    )
+      return;
+
+    setLoadingExplanation((prev) => ({ ...prev, [questionIndex]: true }));
+
+    try {
+      const q = reviewData.examenes!.questions[questionIndex];
+      const response = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.answer,
+          userAnswer: reviewData.user_answers[questionIndex],
+          topic: reviewData.examenes!.topic,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setExplanations((prev) => ({
+          ...prev,
+          [questionIndex]: data.explanation,
+        }));
+      } else {
+        setError("No se pudo cargar la explicación");
+      }
+    } catch (err) {
+      setError("Error al obtener la explicación");
+    } finally {
+      setLoadingExplanation((prev) => ({ ...prev, [questionIndex]: false }));
+    }
+  };
+
+  const formatTime = (seconds: number | null) => {
+    if (!seconds) return "N/A";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
 
   if (loading) {
     return (
@@ -80,13 +136,29 @@ export default function RevisionPage() {
     );
   }
 
+  const examType = reviewData.examenes?.exam_type || "opcion_multiple";
+
   return (
     <div className="page-content">
       <Link href="/historial" className="back-link">
         <FiArrowLeft /> Volver al Historial
       </Link>
       <h1>Revisión del Examen</h1>
-      <h2>Tema: {reviewData.examenes?.topic || "Desconocido"}</h2>
+      <div className="exam-info-header">
+        <h2>Tema: {reviewData.examenes?.topic || "Desconocido"}</h2>
+        <div className="exam-meta">
+          {reviewData.time_spent_seconds && (
+            <span className="meta-badge">
+              ⏱️ Tiempo: {formatTime(reviewData.time_spent_seconds)}
+            </span>
+          )}
+          {reviewData.examenes?.has_timer && (
+            <span className="meta-badge timer-badge">
+              ⏰ Límite: {reviewData.examenes.timer_minutes} min
+            </span>
+          )}
+        </div>
+      </div>
 
       <div className="review-container">
         {reviewData.examenes?.questions.map((q, index) => {
@@ -100,23 +172,60 @@ export default function RevisionPage() {
                   {index + 1}. {q.question}
                 </strong>
               </p>
-              <div className="review-options">
-                {q.options.map((option, i) => {
-                  let className = "review-option";
-                  if (option === q.answer) {
-                    className += " correct"; // La respuesta correcta siempre se marca
-                  }
-                  if (option === userAnswer && !isCorrect) {
-                    className += " incorrect"; // La respuesta del usuario, si fue incorrecta
-                  }
 
-                  return (
-                    <div key={i} className={className}>
-                      {option}
+              {examType === "pregunta_abierta" ? (
+                <div className="open-answer-review">
+                  <div className="user-answer-section">
+                    <h4>Tu respuesta:</h4>
+                    <p className="user-answer-text">
+                      {userAnswer || "Sin respuesta"}
+                    </p>
+                  </div>
+                  <div className="model-answer">
+                    <h4>Respuesta modelo:</h4>
+                    <p className="model-answer-text">{q.answer}</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="review-options">
+                    {q.options?.map((option, i) => {
+                      let className = "review-option";
+                      if (option === q.answer) {
+                        className += " correct";
+                      }
+                      if (option === userAnswer && !isCorrect) {
+                        className += " incorrect";
+                      }
+                      return (
+                        <div key={i} className={className}>
+                          {option}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    className="explain-btn"
+                    onClick={() => handleExplainQuestion(index)}
+                    disabled={loadingExplanation[index]}
+                  >
+                    <FiHelpCircle />
+                    {loadingExplanation[index]
+                      ? "Cargando..."
+                      : explanations[index]
+                      ? "Ocultar explicación"
+                      : "¿Por qué esta respuesta?"}
+                  </button>
+
+                  {explanations[index] && (
+                    <div className="explanation-box">
+                      <h4>📚 Explicación:</h4>
+                      <p>{explanations[index]}</p>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                </>
+              )}
             </div>
           );
         })}
