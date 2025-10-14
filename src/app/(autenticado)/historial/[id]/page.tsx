@@ -31,7 +31,7 @@ type ReviewData = {
 
 // Función para convertir markdown a HTML
 const markdownToHtml = (text: string): string => {
-  let html = text
+  const html = text
     // Negritas: **texto** → <strong>texto</strong>
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     // Cursiva: *texto* → <em>texto</em>
