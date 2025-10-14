@@ -22,7 +22,8 @@
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
     "recharts": "^3.2.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "pdfjs-dist": "^4.4.168"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

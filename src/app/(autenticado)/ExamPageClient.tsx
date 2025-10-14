@@ -1,3 +1,4 @@
+// src/app/(autenticado)/ExamPageClient.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -6,6 +7,15 @@ import type { Session } from "@supabase/supabase-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FiUpload, FiX, FiClock, FiHelpCircle } from "react-icons/fi";
 import "./loading-screen.css";
+import * as pdfjs from "pdfjs-dist";
+
+// NOTA IMPORTANTE: Se configura el worker de PDF.js para que la extracción de texto funcione.
+// Se utiliza un CDN por simplicidad. En producción, se recomienda alojar el worker en el servidor.
+if (typeof window !== "undefined") {
+  // Aseguramos que solo se ejecute en el navegador
+  // @ts-ignore: pdfjs tiene una propiedad GlobalWorkerOptions que puede no estar tipada por defecto
+  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+}
 
 type Question = {
   question: string;
@@ -207,19 +217,63 @@ export default function HomePage() {
     if (!file) return;
 
     setUploadedFile(file);
-    const reader = new FileReader();
+    setError(null);
 
-    reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      if (file.type === "application/pdf") {
-        setError("Para PDFs, por favor copia y pega el texto manualmente.");
+    if (file.type === "application/pdf") {
+      try {
+        const arrayBuffer = await new Promise<ArrayBuffer>(
+          (resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              if (event.target?.result) {
+                resolve(event.target.result as ArrayBuffer);
+              } else {
+                reject(new Error("No se pudo leer el archivo."));
+              }
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+          }
+        );
+
+        // Load PDF from array buffer using pdfjs-dist
+        const loadingTask = pdfjs.getDocument({
+          data: new Uint8Array(arrayBuffer),
+        });
+        const pdf = await loadingTask.promise;
+        let fullText = "";
+
+        // Iterate over all pages to extract text
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+
+          // Join text items, often separated by spaces
+          const pageText = textContent.items
+            .map((item) => ("str" in item ? item.str : ""))
+            .join(" ");
+
+          fullText += pageText + "\n";
+        }
+
+        setSourceText(fullText.trim());
+      } catch (err: any) {
+        console.error("Error al procesar PDF:", err);
+        setError(
+          "Error al procesar el archivo PDF. Asegúrate de que sea un archivo de texto válido y no esté protegido."
+        );
         setUploadedFile(null);
-      } else {
-        setSourceText(text);
+        setSourceText("");
       }
-    };
-
-    reader.readAsText(file);
+    } else {
+      // Logic for TXT/MD files (text files)
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const text = event.target?.result as string;
+        setSourceText(text);
+      };
+      reader.readAsText(file);
+    }
   };
 
   const removeFile = () => {
@@ -675,12 +729,12 @@ export default function HomePage() {
                   <label className="file-upload-btn">
                     <input
                       type="file"
-                      accept=".txt,.md"
+                      accept=".txt,.pdf"
                       onChange={handleFileUpload}
                       disabled={isLoading}
                       style={{ display: "none" }}
                     />
-                    Seleccionar archivo (.txt, .md)
+                    Seleccionar archivo (.txt, .pdf)
                   </label>
                 )}
                 {uploadedFile && (
