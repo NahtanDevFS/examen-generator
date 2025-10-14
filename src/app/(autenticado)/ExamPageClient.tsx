@@ -349,7 +349,7 @@ export default function HomePage() {
           score_correct: calculatedResults.correctAnswers,
           score_incorrect: calculatedResults.incorrectAnswers,
           user_answers: userAnswers,
-          time_spent_seconds: timeSpent,
+          time_spent_seconds: timeSpent > 0 ? timeSpent : null,
         });
 
       if (attemptError) {

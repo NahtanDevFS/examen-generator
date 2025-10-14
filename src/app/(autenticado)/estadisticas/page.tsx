@@ -9,6 +9,7 @@ import {
   FiClock,
   FiBarChart2,
   FiCheckCircle,
+  FiDownload,
 } from "react-icons/fi";
 import {
   LineChart,
@@ -27,6 +28,9 @@ import {
 } from "recharts";
 import { format, subDays, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import "./estadisticas.css";
 
 type StatsData = {
@@ -82,7 +86,9 @@ export default function EstadisticasPage() {
   const [topicStats, setTopicStats] = useState<TopicStats[]>([]);
   const [difficultyStats, setDifficultyStats] = useState<DifficultyStats[]>([]);
   const [typeStats, setTypeStats] = useState<TypeStats[]>([]);
-  const [timeRange, setTimeRange] = useState<"7" | "30" | "all">("30");
+  const [timeRange, setTimeRange] = useState<"7" | "14" | "30" | "90" | "all">(
+    "30"
+  );
 
   useEffect(() => {
     fetchStatistics();
@@ -99,8 +105,12 @@ export default function EstadisticasPage() {
     let startDate = new Date(0); // Desde el inicio
     if (timeRange === "7") {
       startDate = subDays(new Date(), 7);
+    } else if (timeRange === "14") {
+      startDate = subDays(new Date(), 14);
     } else if (timeRange === "30") {
       startDate = subDays(new Date(), 30);
+    } else if (timeRange === "90") {
+      startDate = subDays(new Date(), 90);
     }
 
     // Obtener todos los intentos con información del examen
@@ -192,7 +202,11 @@ export default function EstadisticasPage() {
       correctAnswers: totalCorrect,
       streak,
       favoriteType:
-        favoriteType === "opcion_multiple" ? "Opción Múltiple" : "V o F",
+        favoriteType === "opcion_multiple"
+          ? "Opción Múltiple"
+          : favoriteType === "verdadero_falso"
+          ? "V o F"
+          : "Pregunta Abierta",
       favoriteDifficulty:
         favoriteDifficulty.charAt(0).toUpperCase() +
         favoriteDifficulty.slice(1),
@@ -297,7 +311,7 @@ export default function EstadisticasPage() {
             ? "Opción Múltiple"
             : type === "verdadero_falso"
             ? "Verdadero o Falso"
-            : type,
+            : "Pregunta Abierta",
         count,
       })
     );
@@ -330,6 +344,124 @@ export default function EstadisticasPage() {
     return streak;
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("Estadísticas de Exámenes", 14, 20);
+
+    doc.setFontSize(11);
+    doc.text(
+      `Fecha de exportación: ${new Date().toLocaleDateString()}`,
+      14,
+      28
+    );
+    doc.text(`Rango: ${getTimeRangeLabel(timeRange)}`, 14, 34);
+
+    let yPosition = 45;
+
+    // Resumen de estadísticas
+    doc.setFontSize(13);
+    doc.text("Resumen General", 14, yPosition);
+    yPosition += 10;
+
+    const summaryData = [
+      ["Exámenes Realizados", stats.totalExams.toString()],
+      ["Total Intentos", stats.totalAttempts.toString()],
+      ["Promedio General", `${stats.averageScore.toFixed(1)}%`],
+      ["Mejor Puntuación", `${stats.bestScore.toFixed(1)}%`],
+      [
+        "Preguntas Correctas",
+        `${stats.correctAnswers}/${stats.totalQuestions}`,
+      ],
+      ["Racha de Días", stats.streak.toString()],
+      ["Tipo Favorito", stats.favoriteType],
+      ["Dificultad Preferida", stats.favoriteDifficulty],
+    ];
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [["Métrica", "Valor"]],
+      body: summaryData,
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [0, 123, 255] },
+    });
+
+    doc.save(`estadisticas_${new Date().getTime()}.pdf`);
+  };
+
+  const exportToExcel = () => {
+    const summaryData = [
+      {
+        Métrica: "Exámenes Realizados",
+        Valor: stats.totalExams,
+      },
+      {
+        Métrica: "Total Intentos",
+        Valor: stats.totalAttempts,
+      },
+      {
+        Métrica: "Promedio General",
+        Valor: `${stats.averageScore.toFixed(1)}%`,
+      },
+      {
+        Métrica: "Mejor Puntuación",
+        Valor: `${stats.bestScore.toFixed(1)}%`,
+      },
+      {
+        Métrica: "Preguntas Correctas",
+        Valor: `${stats.correctAnswers}/${stats.totalQuestions}`,
+      },
+      {
+        Métrica: "Racha de Días",
+        Valor: stats.streak,
+      },
+      {
+        Métrica: "Tipo Favorito",
+        Valor: stats.favoriteType,
+      },
+      {
+        Métrica: "Dificultad Preferida",
+        Valor: stats.favoriteDifficulty,
+      },
+    ];
+
+    const topicData = topicStats.map((topic) => ({
+      Tema: topic.topic,
+      Intentos: topic.attempts,
+      "Promedio (%)": topic.avgScore.toFixed(1),
+    }));
+
+    const ws1 = XLSX.utils.json_to_sheet(summaryData);
+    const ws2 = XLSX.utils.json_to_sheet(topicData);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws1, "Resumen");
+    XLSX.utils.book_append_sheet(wb, ws2, "Temas");
+
+    ws1["!cols"] = [{ wch: 25 }, { wch: 20 }];
+    ws2["!cols"] = [{ wch: 30 }, { wch: 12 }, { wch: 15 }];
+
+    XLSX.writeFile(wb, `estadisticas_${new Date().getTime()}.xlsx`);
+  };
+
+  const getTimeRangeLabel = (range: string): string => {
+    switch (range) {
+      case "7":
+        return "Últimos 7 días";
+      case "14":
+        return "Últimos 14 días";
+      case "30":
+        return "Últimos 30 días";
+      case "90":
+        return "Últimos 90 días";
+      case "all":
+        return "Todo el tiempo";
+      default:
+        return "Desconocido";
+    }
+  };
+
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
   if (loading) {
@@ -344,25 +476,48 @@ export default function EstadisticasPage() {
     <div className="page-content estadisticas-page">
       <div className="stats-header">
         <h1>Dashboard de Estadísticas 📊</h1>
-        <div className="time-range-selector">
-          <button
-            className={timeRange === "7" ? "active" : ""}
-            onClick={() => setTimeRange("7")}
-          >
-            7 días
-          </button>
-          <button
-            className={timeRange === "30" ? "active" : ""}
-            onClick={() => setTimeRange("30")}
-          >
-            30 días
-          </button>
-          <button
-            className={timeRange === "all" ? "active" : ""}
-            onClick={() => setTimeRange("all")}
-          >
-            Todo
-          </button>
+        <div className="stats-controls">
+          <div className="time-range-selector">
+            <button
+              className={timeRange === "7" ? "active" : ""}
+              onClick={() => setTimeRange("7")}
+            >
+              7 días
+            </button>
+            <button
+              className={timeRange === "14" ? "active" : ""}
+              onClick={() => setTimeRange("14")}
+            >
+              14 días
+            </button>
+            <button
+              className={timeRange === "30" ? "active" : ""}
+              onClick={() => setTimeRange("30")}
+            >
+              30 días
+            </button>
+            <button
+              className={timeRange === "90" ? "active" : ""}
+              onClick={() => setTimeRange("90")}
+            >
+              90 días
+            </button>
+            <button
+              className={timeRange === "all" ? "active" : ""}
+              onClick={() => setTimeRange("all")}
+            >
+              Todo
+            </button>
+          </div>
+
+          <div className="export-buttons">
+            <button className="btn-export-pdf" onClick={exportToPDF}>
+              <FiDownload /> PDF
+            </button>
+            <button className="btn-export-excel" onClick={exportToExcel}>
+              <FiDownload /> Excel
+            </button>
+          </div>
         </div>
       </div>
 

@@ -776,12 +776,13 @@ export default function HistorialPage() {
                       <FiXCircle className="icon incorrect" /> Errores:{" "}
                       {attempt.score_incorrect}
                     </p>
-                    {attempt.time_spent_seconds && (
-                      <p>
-                        <FiClock className="icon" /> Tiempo:{" "}
-                        {formatTime(attempt.time_spent_seconds)}
-                      </p>
-                    )}
+                    {attempt.time_spent_seconds &&
+                      attempt.time_spent_seconds > 0 && (
+                        <p>
+                          <FiClock className="icon" /> Tiempo:{" "}
+                          {formatTime(attempt.time_spent_seconds)}
+                        </p>
+                      )}
                   </div>
                   <div className="item-footer">
                     <FiCalendar className="icon" />

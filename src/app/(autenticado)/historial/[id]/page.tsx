@@ -1,3 +1,5 @@
+//historial/[id]/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,6 +29,25 @@ type ReviewData = {
   } | null;
 };
 
+// Función para convertir markdown a HTML
+const markdownToHtml = (text: string): string => {
+  let html = text
+    // Negritas: **texto** → <strong>texto</strong>
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    // Cursiva: *texto* → <em>texto</em>
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    // Listas de viñetas: * item → <li>item</li>
+    .replace(/^\* (.+)$/gm, "<li>$1</li>")
+    // Saltos de línea
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n/g, "<br>");
+
+  // Envolver listas en <ul>
+  html.replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>");
+
+  return `<p>${html}</p>`;
+};
+
 export default function RevisionPage() {
   const supabase = createClient();
   const params = useParams();
@@ -41,6 +62,9 @@ export default function RevisionPage() {
   const [explanations, setExplanations] = useState<{ [key: number]: string }>(
     {}
   );
+  const [visibleExplanations, setVisibleExplanations] = useState<{
+    [key: number]: boolean;
+  }>({});
 
   useEffect(() => {
     if (id) {
@@ -72,12 +96,17 @@ export default function RevisionPage() {
   }, [id, supabase]);
 
   const handleExplainQuestion = async (questionIndex: number) => {
-    if (
-      !reviewData ||
-      loadingExplanation[questionIndex] ||
-      explanations[questionIndex]
-    )
+    // Si ya existe la explicación, simplemente toggle la visibilidad
+    if (explanations[questionIndex]) {
+      setVisibleExplanations((prev) => ({
+        ...prev,
+        [questionIndex]: !prev[questionIndex],
+      }));
       return;
+    }
+
+    // Si no existe, cargarla
+    if (!reviewData || loadingExplanation[questionIndex]) return;
 
     setLoadingExplanation((prev) => ({ ...prev, [questionIndex]: true }));
 
@@ -100,6 +129,10 @@ export default function RevisionPage() {
         setExplanations((prev) => ({
           ...prev,
           [questionIndex]: data.explanation,
+        }));
+        setVisibleExplanations((prev) => ({
+          ...prev,
+          [questionIndex]: true,
         }));
       } else {
         setError("No se pudo cargar la explicación");
@@ -213,15 +246,20 @@ export default function RevisionPage() {
                     <FiHelpCircle />
                     {loadingExplanation[index]
                       ? "Cargando..."
-                      : explanations[index]
+                      : visibleExplanations[index]
                       ? "Ocultar explicación"
                       : "¿Por qué esta respuesta?"}
                   </button>
 
-                  {explanations[index] && (
+                  {visibleExplanations[index] && explanations[index] && (
                     <div className="explanation-box">
                       <h4>📚 Explicación:</h4>
-                      <p>{explanations[index]}</p>
+                      <div
+                        className="explanation-content"
+                        dangerouslySetInnerHTML={{
+                          __html: markdownToHtml(explanations[index]),
+                        }}
+                      />
                     </div>
                   )}
                 </>

@@ -10,11 +10,18 @@
   align-items: center;
   margin-bottom: 2rem;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .stats-header h1 {
   margin: 0;
+}
+
+.stats-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .time-range-selector {
@@ -34,6 +41,7 @@
   font-weight: 500;
   transition: all 0.2s;
   color: #666;
+  white-space: nowrap;
 }
 
 .time-range-selector button.active {
@@ -43,6 +51,48 @@
 
 .time-range-selector button:hover:not(.active) {
   background-color: #e0e0e0;
+}
+
+/* BOTONES DE EXPORTACIÓN */
+.export-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-export-pdf,
+.btn-export-excel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.btn-export-pdf {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-export-pdf:hover {
+  background-color: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-export-excel {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-export-excel:hover {
+  background-color: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
 }
 
 .stats-grid {
@@ -145,10 +195,66 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .stats-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stats-controls {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .time-range-selector {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .time-range-selector button {
+    flex: 1;
+  }
+
+  .export-buttons {
+    width: 100%;
+  }
+
+  .btn-export-pdf,
+  .btn-export-excel {
+    flex: 1;
+  }
+}
+
 @media (max-width: 768px) {
   .stats-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .stats-controls {
+    width: 100%;
+  }
+
+  .time-range-selector {
+    width: 100%;
+  }
+
+  .time-range-selector button {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .export-buttons {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .btn-export-pdf,
+  .btn-export-excel {
+    flex: 1;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.85rem;
   }
 
   .stats-grid {
@@ -171,9 +277,44 @@
 @media (max-width: 600px) {
   .time-range-selector {
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .time-range-selector button {
-    flex: 1;
+    flex: 1 1 calc(50% - 0.25rem);
+    font-size: 0.75rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .export-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .btn-export-pdf,
+  .btn-export-excel {
+    width: 100%;
+  }
+
+  .stats-grid {
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
   }
 }
