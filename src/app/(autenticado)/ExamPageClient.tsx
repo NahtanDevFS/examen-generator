@@ -13,7 +13,6 @@ import * as pdfjs from "pdfjs-dist";
 // Se utiliza un CDN por simplicidad. En producción, se recomienda alojar el worker en el servidor.
 if (typeof window !== "undefined") {
   // Aseguramos que solo se ejecute en el navegador
-  // @ts-ignore: pdfjs tiene una propiedad GlobalWorkerOptions que puede no estar tipada por defecto
   pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 }
 

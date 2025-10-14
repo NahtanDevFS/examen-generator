@@ -1,8 +1,10 @@
+// src/app/login/page.tsx
 "use client";
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { FcGoogle } from "react-icons/fc"; // Importamos el ícono de Google
 import "./estilos_login.css";
 
 export default function LoginPage() {
@@ -62,6 +64,27 @@ export default function LoginPage() {
     }
   };
 
+  // NUEVA FUNCIÓN: Iniciar sesión con Google OAuth
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          // La ruta de redireccionamiento al finalizar el flujo de OAuth
+          redirectTo: `${window.location.origin}/autenticado/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+      }
+    } catch (e: any) {
+      setError(`Error de autenticación: ${e.message}`);
+    }
+  };
+
   if (isPasswordRecovery) {
     return (
       <div className="login-page-wrapper">
@@ -108,6 +131,20 @@ export default function LoginPage() {
       <div className="login-container">
         <div className="login-form">
           <h2>{isSignUp ? "Crear Cuenta" : "Iniciar Sesión"}</h2>
+
+          {/* BOTÓN DE GOOGLE - NUEVA ADICIÓN */}
+          <button
+            type="button"
+            className="auth-button google-button"
+            onClick={handleGoogleSignIn}
+          >
+            <FcGoogle size={24} />
+            {isSignUp ? "Registrarse con Google" : "Continuar con Google"}
+          </button>
+
+          <div className="separator">O</div>
+
+          {/* Formulario existente */}
           <form onSubmit={handleAuth}>
             <div className="input-group">
               <label htmlFor="email">Correo electrónico</label>
@@ -140,6 +177,7 @@ export default function LoginPage() {
               {isSignUp ? "Registrarse" : "Iniciar Sesión"}
             </button>
           </form>
+
           {error && <p className="error-message">{error}</p>}
           {message && <p className="success-message">{message}</p>}
           <p className="toggle-auth">
