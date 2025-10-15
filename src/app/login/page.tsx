@@ -1,4 +1,3 @@
-// src/app/login/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -33,7 +32,6 @@ export default function LoginPage() {
   // Función unificada para obtener y guardar el perfil del usuario en localStorage
   const saveUserToLocalStorage = async (userId: string) => {
     // 1. Obtener el perfil del usuario de la tabla "usuario"
-    // NOTA: Asumimos que la tabla 'usuario' existe y está sincronizada.
     const { data: userData, error: userError } = await supabase
       .from("usuario")
       .select("id, nombre_usuario")
@@ -48,6 +46,17 @@ export default function LoginPage() {
       localStorage.setItem("examflowUser", JSON.stringify(userToStore));
       return true;
     } else {
+      // Si el usuario no está en la tabla `usuario` (caso OAuth),
+      // guardamos un placeholder para evitar el bucle de redirección.
+      if (userError && userError.code === "PGRST116") {
+        // Error de "no se encontró"
+        const userToStore: ExamflowUser = {
+          id: userId,
+          name: "Usuario Google", // Placeholder
+        };
+        localStorage.setItem("examflowUser", JSON.stringify(userToStore));
+        return true;
+      }
       console.error("Error al obtener datos de perfil del usuario:", userError);
       return false;
     }
@@ -63,7 +72,6 @@ export default function LoginPage() {
       try {
         const user: ExamflowUser = JSON.parse(storedUser);
         if (user && user.id) {
-          // Si el usuario está en localStorage, redirigimos inmediatamente.
           handleRedirectToDashboard();
           return;
         }
@@ -80,10 +88,8 @@ export default function LoginPage() {
           return;
         }
 
-        // Si detectamos un inicio de sesión, lo manejamos (sin importar si es OAuth o Magic Link)
         setLoading(true);
-
-        // 3. Guardamos el perfil en localStorage.
+        // Guardamos el perfil en localStorage.
         const success = await saveUserToLocalStorage(session.user.id);
 
         if (success) {
@@ -162,15 +168,13 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // FUNCIÓN OAuth (NO usa redirectTo)
+  // FUNCIÓN OAuth (CRÍTICA: NO usa redirectTo ni setLoading(false))
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    setLoading(true); // Se inicia el loading aquí
     setError(null);
     setMessage(null);
     try {
-      // CRÍTICO: No especificamos 'redirectTo'. Supabase usa la URL del sitio
-      // que detectó. La URL en tu panel de Google Cloud (Autorized Redirect URI)
-      // DEBE ser la raíz de tu proyecto (ej: https://examen-generator.vercel.app/).
+      // Al no especificar 'redirectTo', Supabase redirige a la URL configurada en el Dashboard (ej. https://examen-generator.vercel.app/).
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
       });
@@ -178,11 +182,15 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       }
-      // NOTA: El control pasa al onAuthStateChange (useEffect) al volver de Google.
     } catch (e: any) {
       setError(`Error de autenticación: ${e.message}`);
+    } finally {
+      // Si hubo un error que impidió la redirección a Google, debemos quitar el loading.
+      // Si el flujo funcionó y redirigió, el 'loading' se mantendrá hasta que el useEffect lo quite.
+      if (!error) {
+        setLoading(false);
+      }
     }
-    // No ponemos setLoading(false) aquí porque onAuthStateChange lo manejará al terminar
   };
 
   if (isPasswordRecovery) {
