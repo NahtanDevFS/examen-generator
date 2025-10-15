@@ -1,146 +1,86 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase"; // ✅ singleton
 import { useRouter } from "next/navigation";
 import "./update-password.css";
 
 export default function UpdatePasswordPage() {
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading"
+  );
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
-    const checkRecoveryParams = async () => {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError) {
-        setError("Error al verificar la sesión.");
-        return;
-      }
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
 
-      // Si ya hay una sesión activa, probablemente el enlace ya se usó
-      if (sessionData.session) {
-        // Pero aún podríamos estar en el flujo de recuperación
-        // Verificamos el hash manualmente
-        const hash = window.location.hash;
-        if (hash.includes("type=recovery")) {
-          setIsReady(true);
-          return;
-        } else {
-          setError("El enlace de recuperación ya fue usado o es inválido.");
-          return;
-        }
-      }
-
-      // Caso: no hay sesión, pero el hash tiene recovery
-      const hash = window.location.hash;
-      if (hash.includes("type=recovery")) {
-        // Extraer tokens del hash
-        const urlParams = new URLSearchParams(hash.replace("#", "?"));
-        const accessToken = urlParams.get("access_token");
-        const refreshToken = urlParams.get("refresh_token");
-
-        if (accessToken && refreshToken) {
-          // Establecer la sesión manualmente
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
+    if (accessToken && refreshToken) {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
           if (error) {
-            setError("No se pudo establecer la sesión de recuperación.");
+            console.error("Error setting session:", error);
+            setStatus("error");
           } else {
-            setIsReady(true);
+            setStatus("ready");
           }
-        } else {
-          setError("Parámetros de recuperación faltantes.");
-        }
-      } else {
-        setError("El enlace de recuperación es inválido o ha expirado.");
-      }
-    };
+        });
+    } else {
+      setStatus("error");
+    }
+  }, []);
 
-    checkRecoveryParams();
-  }, [supabase]);
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isReady) {
-      setError("No se puede actualizar la contraseña. La sesión no es válida.");
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden");
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
     const { error } = await supabase.auth.updateUser({ password });
-
     if (error) {
       setError(error.message);
     } else {
-      setMessage(
-        "¡Contraseña actualizada con éxito! Serás redirigido en unos segundos."
-      );
-      // Cerrar sesión después de actualizar (opcional pero recomendado)
-      await supabase.auth.signOut();
-      setTimeout(() => {
-        router.push("/login");
-      }, 3000);
+      await supabase.auth.signOut(); // 👈 importante: cerrar sesión
+      router.push("/login?message=password_updated");
     }
-    setLoading(false);
   };
 
-  if (!isReady && error === null) {
-    return <p className="info-message">Verificando enlace...</p>;
-  }
-
-  if (error) {
-    return (
-      <div className="update-password-wrapper">
-        <div className="update-password-container">
-          <div className="update-password-form">
-            <h2>Actualizar Contraseña</h2>
-            <p className="error-message">{error}</p>
-            <a href="/login" className="back-to-login-link">
-              Volver al inicio de sesión
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (status === "loading") return <p>Verificando enlace...</p>;
+  if (status === "error") return <p>El enlace es inválido o ya fue usado.</p>;
 
   return (
     <div className="update-password-wrapper">
       <div className="update-password-container">
-        <div className="update-password-form">
-          <h2>Actualizar Contraseña</h2>
-          <form onSubmit={handleUpdatePassword}>
-            <div className="input-group">
-              <label htmlFor="password">Nueva Contraseña</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Introduce tu nueva contraseña"
-              />
-            </div>
-            <button type="submit" className="auth-button" disabled={loading}>
-              {loading ? "Actualizando..." : "Actualizar Contraseña"}
-            </button>
-          </form>
+        <h2>Actualizar Contraseña</h2>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="password"
+            placeholder="Nueva contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
+          <input
+            type="password"
+            placeholder="Confirmar contraseña"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={6}
+          />
           {error && <p className="error-message">{error}</p>}
-          {message && <p className="success-message">{message}</p>}
-        </div>
+          <button type="submit">Actualizar Contraseña</button>
+        </form>
       </div>
     </div>
   );
