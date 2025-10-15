@@ -10,8 +10,6 @@ export default function UpdatePasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Usaremos un estado para manejar el flujo: 'verifying', 'ready', 'error'
   const [pageStatus, setPageStatus] = useState<"verifying" | "ready" | "error">(
     "verifying"
   );
@@ -20,30 +18,35 @@ export default function UpdatePasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // Si ya estamos en 'ready' o 'error', no hacemos nada más.
-    if (pageStatus !== "verifying") return;
+    let isProcessing = false;
 
-    // Temporizador por si el enlace es inválido y el evento nunca llega.
-    const validationTimeout = setTimeout(() => {
-      setError(
-        "El enlace de recuperación es inválido o ha expirado. Por favor, solicita uno nuevo."
-      );
-      setPageStatus("error");
-    }, 5000); // Espera 5 segundos
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "PASSWORD_RECOVERY") {
-          // ¡El evento llegó! Cancelamos el temporizador y actualizamos el estado.
-          clearTimeout(validationTimeout);
-          setPageStatus("ready");
-        }
+    const handleRecovery = () => {
+      if (window.location.hash.includes("access_token") && !isProcessing) {
+        isProcessing = true;
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+          (event, session) => {
+            if (event === "PASSWORD_RECOVERY") {
+              setPageStatus("ready");
+              authListener.subscription.unsubscribe();
+            }
+          }
+        );
       }
-    );
+    };
+
+    handleRecovery();
+
+    const validationTimeout = setTimeout(() => {
+      if (pageStatus === "verifying") {
+        setError(
+          "El enlace de recuperación es inválido, ha expirado o ya fue utilizado. Por favor, solicita uno nuevo."
+        );
+        setPageStatus("error");
+      }
+    }, 5000);
 
     return () => {
-      authListener.subscription.unsubscribe();
-      clearTimeout(validationTimeout); // Limpiamos el temporizador si el componente se desmonta
+      clearTimeout(validationTimeout);
     };
   }, [supabase, pageStatus]);
 
@@ -67,23 +70,28 @@ export default function UpdatePasswordPage() {
         "¡Contraseña actualizada con éxito! Serás redirigido en unos segundos."
       );
       setTimeout(() => {
-        router.push("/login"); // Es mejor redirigir al login para que inicie sesión
+        router.push("/login");
       }, 3000);
     }
     setLoading(false);
   };
 
-  // Función para renderizar el contenido según el estado
   const renderContent = () => {
     if (pageStatus === "verifying") {
       return <p className="info-message">Verificando enlace...</p>;
     }
 
     if (pageStatus === "error") {
-      return <p className="error-message">{error}</p>;
+      return (
+        <div>
+          <p className="error-message">{error}</p>
+          <a href="/login" className="back-to-login-link">
+            Volver a la página de inicio
+          </a>
+        </div>
+      );
     }
 
-    // Si pageStatus es 'ready', mostramos el formulario
     return (
       <form onSubmit={handleUpdatePassword}>
         <div className="input-group">
@@ -92,6 +100,7 @@ export default function UpdatePasswordPage() {
             id="password"
             type="password"
             value={password}
+            // --- LÍNEA CORREGIDA ---
             onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="Introduce tu nueva contraseña"
@@ -110,7 +119,6 @@ export default function UpdatePasswordPage() {
         <div className="update-password-form">
           <h2>Actualizar Contraseña</h2>
           {renderContent()}
-          {/* Mostramos mensajes de éxito o error del envío del formulario */}
           {pageStatus === "ready" && error && (
             <p className="error-message">{error}</p>
           )}
