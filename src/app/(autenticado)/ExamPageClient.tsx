@@ -1,4 +1,3 @@
-// src/app/(autenticado)/ExamPageClient.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -10,10 +9,15 @@ import "./loading-screen.css";
 import * as pdfjs from "pdfjs-dist";
 
 // NOTA IMPORTANTE: Se configura el worker de PDF.js para que la extracción de texto funcione.
-// Se utiliza un CDN por simplicidad. En producción, se recomienda alojar el worker en el servidor.
+// La ruta '/' busca el archivo directamente en la carpeta 'public' del proyecto.
 if (typeof window !== "undefined") {
-  // Aseguramos que solo se ejecute en el navegador
   pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+}
+
+// Tipo de usuario en localStorage (detección rápida)
+interface ExamflowUser {
+  id: string;
+  name: string;
 }
 
 type Question = {
@@ -61,6 +65,37 @@ export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
 
+  // Verificación de LocalStorage para proteger la ruta (solo cliente)
+  useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (!storedUser) {
+      router.push("/login");
+      return;
+    }
+
+    // Si hay usuario en localStorage, asumimos que la sesión es válida y cargamos la data
+    const fetchSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        // Si el localStorage está, pero Supabase no tiene cookies (ej: expiró), borramos y redirigimos
+        localStorage.removeItem("examflowUser");
+        router.push("/login");
+        return;
+      }
+      setSession(session);
+      setLoadingSession(false);
+      fetchCategoriasYEtiquetas(session.user.id);
+
+      const examIdToLoad = searchParams.get("examId");
+      if (examIdToLoad) {
+        loadExam(parseInt(examIdToLoad, 10), session.user.id);
+      }
+    };
+    fetchSession();
+  }, [router, supabase, searchParams]);
+
   const [examType, setExamType] = useState("opcion_multiple");
   const [difficulty, setDifficulty] = useState("principiante");
   const [questionCount, setQuestionCount] = useState(10);
@@ -105,26 +140,6 @@ export default function HomePage() {
     {}
   );
 
-  useEffect(() => {
-    const getSessionAndLoadExam = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        router.push("/login");
-        return;
-      }
-      setSession(data.session);
-      setLoadingSession(false);
-
-      fetchCategoriasYEtiquetas(data.session.user.id);
-
-      const examIdToLoad = searchParams.get("examId");
-      if (examIdToLoad) {
-        loadExam(parseInt(examIdToLoad, 10));
-      }
-    };
-    getSessionAndLoadExam();
-  }, [supabase, router, searchParams]);
-
   // Timer effect
   useEffect(() => {
     if (timerActive && timeRemaining !== null && timeRemaining > 0) {
@@ -166,7 +181,7 @@ export default function HomePage() {
     setEtiquetas(tags || []);
   };
 
-  const loadExam = async (examId: number) => {
+  const loadExam = async (examId: number, userId: string) => {
     setIsLoading(true);
     setLoadingProgress(30);
 
@@ -265,7 +280,7 @@ export default function HomePage() {
         setSourceText("");
       }
     } else {
-      // Logic for TXT/MD files (text files)
+      // Logic for TXT files (text files)
       const reader = new FileReader();
       reader.onload = async (event) => {
         const text = event.target?.result as string;
@@ -282,7 +297,10 @@ export default function HomePage() {
 
   const handleGenerateExam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session) return;
+    if (!session) {
+      setError("Error de sesión. Intenta iniciar sesión nuevamente.");
+      return;
+    }
 
     if (!topic && !sourceText) {
       setError("Debes proporcionar un tema o subir/pegar texto.");
