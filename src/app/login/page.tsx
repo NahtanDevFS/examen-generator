@@ -73,7 +73,7 @@ export default function LoginPage() {
         provider: "google",
         options: {
           // La ruta de redireccionamiento al finalizar el flujo de OAuth
-          redirectTo: `${window.location.origin}/autenticado/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
