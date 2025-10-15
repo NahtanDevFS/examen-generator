@@ -498,6 +498,10 @@ export default function HistorialPage() {
 
       <div className="historial-header">
         <h1>Historial de Exámenes 📚</h1>
+        <p className="page-description">
+          Explora todos tus intentos de examen anteriores, revisa tus respuestas
+          y filtra los resultados para encontrar justo lo que buscas.
+        </p>
         <div className="header-actions">
           <button
             className="btn-filter"

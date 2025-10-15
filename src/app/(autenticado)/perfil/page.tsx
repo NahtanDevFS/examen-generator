@@ -79,6 +79,10 @@ export default function PerfilPage() {
   return (
     <div className="page-content">
       <h1>Gestionar Perfil</h1>
+      <p className="page-description">
+        Aquí puedes actualizar tu dirección de correo electrónico y cambiar tu
+        contraseña de forma segura.
+      </p>
 
       <div className="profile-forms-container">
         {/* Formulario de Email */}

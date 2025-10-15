@@ -37,3 +37,10 @@
     padding-left: 1.5rem;
   }
 }
+
+.page-description {
+  font-size: 1.3rem; /* Un tamaño de fuente ligeramente más pequeño que el texto normal */
+  color: #6c757d; /* Un color gris suave para que no compita con el título */
+  line-height: 1.5; /* Mejora la legibilidad */
+  font-weight: 700;
+}

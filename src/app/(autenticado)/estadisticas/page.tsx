@@ -476,6 +476,10 @@ export default function EstadisticasPage() {
     <div className="page-content estadisticas-page">
       <div className="stats-header">
         <h1>Dashboard de Estadísticas 📊</h1>
+        <p className="page-description">
+          Aquí puedes visualizar tu progreso, analizar tus resultados a lo largo
+          del tiempo y descubrir tus puntos fuertes.
+        </p>
         <div className="stats-controls">
           <div className="time-range-selector">
             <button

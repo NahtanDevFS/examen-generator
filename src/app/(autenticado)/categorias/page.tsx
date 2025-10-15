@@ -255,6 +255,10 @@ export default function CategoriasPage() {
   return (
     <div className="page-content categorias-page">
       <h1>Gestionar Categorías y Etiquetas 🏷️</h1>
+      <p className="page-description">
+        Crea y administra categorías y etiquetas para organizar tus exámenes de
+        una manera más eficiente y personalizada.
+      </p>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}

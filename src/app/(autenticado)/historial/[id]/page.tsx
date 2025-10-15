@@ -177,6 +177,10 @@ export default function RevisionPage() {
         <FiArrowLeft /> Volver al Historial
       </Link>
       <h1>Revisión del Examen</h1>
+      <p className="page-description">
+        Analiza cada una de tus respuestas, compáralas con las correctas y obtén
+        explicaciones detalladas para mejorar tu conocimiento.
+      </p>
       <div className="exam-info-header">
         <h2>Tema: {reviewData.examenes?.topic || "Desconocido"}</h2>
         <div className="exam-meta">

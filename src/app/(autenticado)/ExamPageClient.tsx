@@ -723,6 +723,10 @@ export default function HomePage() {
 
       <div className={`page-content ${timerActive ? "has-timer" : ""}`}>
         <h1>Generador de Exámenes con IA 🧠</h1>
+        <p className="page-description">
+          Crea un nuevo examen a partir de un texto, un tema o repite uno que ya
+          hayas realizado.
+        </p>
 
         {/* FORMULARIO DE GENERACIÓN */}
         {questions.length === 0 && !results && (
