@@ -1,11 +1,11 @@
-// src/app/login/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { FcGoogle } from "react-icons/fc"; // Importamos el ícono de Google
+import { FcGoogle } from "react-icons/fc";
 import "./estilos_login.css";
+import type { Session } from "@supabase/supabase-js";
 
 // Definimos el tipo de objeto que guardaremos en localStorage
 interface ExamflowUser {
@@ -20,83 +20,77 @@ export default function LoginPage() {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Inicia en true para manejar la carga inicial
 
   const router = useRouter();
   const supabase = createClient();
 
-  const handleRedirectToDashboard = () => {
-    // Usamos window.location.href para forzar la navegación y recarga,
-    // asegurando que el middleware (si aún existiera) vea las nuevas cookies.
-    window.location.href = "/";
-  };
-
-  // Función unificada para obtener y guardar el perfil del usuario en localStorage
+  // Función unificada para obtener y guardar el perfil del usuario
   const saveUserToLocalStorage = async (userId: string) => {
-    // NOTA: Asumimos que la tabla 'usuario' existe y está sincronizada.
     const { data: userData, error: userError } = await supabase
       .from("usuario")
       .select("id, nombre_usuario")
       .eq("id", userId)
       .single();
 
-    if (!userError && userData) {
+    if (userError && userError.code !== "PGRST116") {
+      console.error("Error fetching user profile:", userError);
+      return false;
+    }
+
+    if (userData) {
       const userToStore: ExamflowUser = {
         id: userData.id,
         name: userData.nombre_usuario,
       };
       localStorage.setItem("examflowUser", JSON.stringify(userToStore));
-      return true;
     } else {
-      // Caso de nuevo usuario OAuth que aún no tiene entrada en la tabla 'usuario'.
-      // Guardamos un placeholder para permitir la redirección (PGRST116: no encontrado).
-      if (userError) {
-        const userToStore: ExamflowUser = {
-          id: userId,
-          name: "Usuario temporal",
-        };
-        localStorage.setItem("examflowUser", JSON.stringify(userToStore));
-        return true;
-      }
-      console.error("Error al obtener datos de perfil del usuario:", userError);
-      return false;
+      // Si el perfil no existe, creamos uno temporal para nuevos usuarios de OAuth
+      const userToStore: ExamflowUser = { id: userId, name: "Usuario" };
+      localStorage.setItem("examflowUser", JSON.stringify(userToStore));
+    }
+    return true;
+  };
+
+  // Función centralizada para manejar el login exitoso
+  const handleSuccessfulSignIn = async (session: Session | null) => {
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+
+    const success = await saveUserToLocalStorage(session.user.id);
+    if (success) {
+      // Redirección forzada para asegurar que el estado de la app se actualice
+      window.location.href = "/";
+    } else {
+      setError("No se pudo cargar tu perfil. Por favor, intenta de nuevo.");
+      setLoading(false);
     }
   };
 
-  // =======================================================
-  // BUCLE CRÍTICO: Manejar la persistencia y la redirección
-  // =======================================================
   useEffect(() => {
-    // 1. Verificación inicial de localStorage (detección rápida)
+    // 1. Revisa si ya hay un usuario en localStorage al cargar
     const storedUser = localStorage.getItem("examflowUser");
     if (storedUser) {
-      try {
-        const user: ExamflowUser = JSON.parse(storedUser);
-        if (user && user.id) {
-          handleRedirectToDashboard();
-          return;
-        }
-      } catch (e) {
-        localStorage.removeItem("examflowUser");
-      }
+      window.location.href = "/";
+      return;
     }
 
-    // 2. Escucha cambios en el estado (se activa después de CUALQUIER login/OAuth)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // El evento SIGNED_IN se dispara después del login con email/pass O
-        // cuando la página se carga después de una redirección de OAuth.
-        if (event === "SIGNED_IN" && session) {
-          setLoading(true);
-          // Guardamos el perfil en localStorage.
-          const success = await saveUserToLocalStorage(session.user.id);
+    // 2. Proactivamente intenta obtener la sesión. Esto captura el redirect de OAuth.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        handleSuccessfulSignIn(session);
+      } else {
+        setLoading(false); // No hay sesión, deja de cargar para mostrar el formulario
+      }
+    });
 
-          if (success) {
-            handleRedirectToDashboard();
-          } else {
-            setError("Error al cargar perfil. Intenta de nuevo.");
-            setLoading(false);
-          }
+    // 3. Escucha futuros cambios en el estado de autenticación.
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_IN" && session) {
+          handleSuccessfulSignIn(session);
         }
       }
     );
@@ -105,8 +99,52 @@ export default function LoginPage() {
       authListener.subscription.unsubscribe();
     };
   }, [supabase]);
-  // Nota: Eliminamos `router` de las dependencias de useEffect ya que usamos window.location
-  // =======================================================
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    const authMethod = isSignUp
+      ? supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { nombre_usuario: "Nuevo Usuario" } },
+        })
+      : supabase.auth.signInWithPassword({ email, password });
+
+    const { error } = await authMethod;
+
+    if (error) {
+      setError(error.message);
+    } else if (isSignUp) {
+      setMessage(
+        "¡Registro exitoso! Revisa tu correo para confirmar tu cuenta."
+      );
+    }
+    // Para signIn, el listener onAuthStateChange se encargará de la redirección
+
+    if (!isSignUp) {
+      // Si no es un registro, puede que el setLoading necesite ser desactivado si hay un error
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${location.origin}/login`,
+      },
+    });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
+  };
 
   const handlePasswordRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,70 +158,19 @@ export default function LoginPage() {
       setError(error.message);
     } else {
       setMessage(
-        "Si existe una cuenta, se ha enviado un enlace para restablecer la contraseña a tu correo."
+        "Si la cuenta existe, se ha enviado un enlace de recuperación a tu correo."
       );
     }
     setLoading(false);
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
-    if (isSignUp) {
-      // Modo Registro
-      const { error, data: signUpData } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { nombre_usuario: "Nuevo Usuario" } },
-      });
-      if (error) {
-        setError(error.message);
-      } else {
-        setMessage(
-          "¡Registro exitoso! Revisa tu correo para confirmar tu cuenta."
-        );
-      }
-    } else {
-      // Modo Inicio de Sesión (Email/Password)
-      const { error, data: signInData } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-      if (error) {
-        setError(error.message);
-      } else if (signInData.session) {
-        // Si el login es exitoso, onAuthStateChange lo detectará y manejará la redirección.
-        // No es necesario llamar a saveUserToLocalStorage aquí porque el listener ya lo hace.
-      }
-    }
-    setLoading(false);
-  };
-
-  // FUNCIÓN OAuth (CRÍTICA: Se basa en el onAuthStateChange del useEffect)
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        // Importante: Redirigir de vuelta aquí. El listener se encargará del resto.
-        redirectTo: `${location.origin}/login`,
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false); // Detener el loading solo si hay un error antes de redirigir.
-    }
-    // Si la redirección es exitosa, el estado de carga continuará hasta que el usuario regrese.
-  };
+  if (loading) {
+    return (
+      <div className="login-page-wrapper">
+        <div>Cargando...</div>
+      </div>
+    );
+  }
 
   if (isPasswordRecovery) {
     return (
@@ -206,7 +193,7 @@ export default function LoginPage() {
                 />
               </div>
               <button type="submit" className="auth-button" disabled={loading}>
-                {loading ? "Enviando..." : "Enviar Instrucciones"}
+                Enviar Instrucciones
               </button>
             </form>
             {error && <p className="error-message">{error}</p>}
@@ -227,7 +214,6 @@ export default function LoginPage() {
       <div className="login-container">
         <div className="login-form">
           <h2>{isSignUp ? "Crear Cuenta" : "Iniciar Sesión"}</h2>
-
           <button
             type="button"
             className="auth-button google-button"
@@ -237,9 +223,7 @@ export default function LoginPage() {
             <FcGoogle size={24} />
             {isSignUp ? "Registrarse con Google" : "Continuar con Google"}
           </button>
-
           <div className="separator">O</div>
-
           <form onSubmit={handleAuth}>
             <div className="input-group">
               <label htmlFor="email">Correo electrónico</label>
@@ -269,14 +253,9 @@ export default function LoginPage() {
               </div>
             )}
             <button type="submit" className="auth-button" disabled={loading}>
-              {loading
-                ? "Cargando..."
-                : isSignUp
-                ? "Registrarse"
-                : "Iniciar Sesión"}
+              {isSignUp ? "Registrarse" : "Iniciar Sesión"}
             </button>
           </form>
-
           {error && <p className="error-message">{error}</p>}
           {message && <p className="success-message">{message}</p>}
           <p className="toggle-auth">
