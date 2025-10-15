@@ -1,6 +1,6 @@
 // middleware.ts
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -18,14 +18,13 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // 1. Establece la cookie en la solicitud entrante (para la siguiente función)
+          // 1. Establece la cookie en la solicitud entrante
           request.cookies.set({
             name,
             value,
             ...options,
           });
-          // 2. CREA UNA NUEVA RESPUESTA para que contenga las nuevas cookies
-          // ESTE PASO ES VITAL para que la cookie se envíe al navegador.
+          // 2. CLONA Y ESTABLECE LA COOKIE EN LA RESPUESTA (CRÍTICO)
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -54,13 +53,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresca la sesión del usuario si ha expirado.
+  // Refresca la sesión del usuario.
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // Si el usuario está en la página de recuperación y no hay sesión,
-  // establece la sesión a partir del hash de la URL.
+  // Redireccionamiento para recuperación de contraseña (ruta especial)
   if (
     !session &&
     request.nextUrl.pathname.startsWith("/update-password") &&
@@ -75,12 +73,11 @@ export async function middleware(request: NextRequest) {
         access_token,
         refresh_token,
       });
-      // Vuelve a cargar la página para que el middleware se ejecute con la sesión ya establecida.
       return NextResponse.redirect(request.nextUrl.origin + "/update-password");
     }
   }
 
-  // Lógica de protección de rutas (si estás en /login y tienes sesión, redirige a /)
+  // Lógica de protección de rutas
   const isAuthenticated = !!session;
   const isLoginPage = request.nextUrl.pathname === "/login";
 
@@ -89,18 +86,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  // Si no está autenticado y NO es /login, lo manda a /login
+  if (!isAuthenticated && !isLoginPage) {
+    // Excluir rutas públicas o estáticas si fuera necesario
+    const publicPaths = [
+      "/login",
+      "/update-password",
+      "/auth/callback",
+      "/autenticado/auth/callback",
+    ]; // Añade aquí cualquier otra ruta pública si es necesario
+
+    // Solo redirige si no está tratando de acceder a una ruta pública ya excluida
+    if (!publicPaths.includes(request.nextUrl.pathname)) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Coincide con todas las rutas de petición excepto las que empiezan por:
-     * - _next/static (archivos estáticos)
-     * - _next/image (optimización de imágenes)
-     * - favicon.ico (archivo de favicon)
-     * Siéntete libre de modificar esto para adaptarlo a tus necesidades.
-     */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
