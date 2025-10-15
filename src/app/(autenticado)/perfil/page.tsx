@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import "./perfil.css"; // Crearemos este archivo a continuación
+import "./perfil.css";
 
 export default function PerfilPage() {
   const supabase = createClient();
@@ -13,12 +13,15 @@ export default function PerfilPage() {
   // Estados para los formularios
   const [newPassword, setNewPassword] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newUsername, setNewUsername] = useState("");
 
   // Estados para los mensajes de feedback
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [usernameMessage, setUsernameMessage] = useState("");
+  const [usernameError, setUsernameError] = useState("");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -26,7 +29,19 @@ export default function PerfilPage() {
         data: { user },
       } = await supabase.auth.getUser();
       setUser(user);
-      setNewEmail(user?.email || ""); // Pre-rellenamos el email actual
+      setNewEmail(user?.email || "");
+
+      if (user) {
+        const { data: userData, error } = await supabase
+          .from("usuario")
+          .select("nombre_usuario")
+          .eq("id", user.id)
+          .single();
+
+        if (userData) {
+          setNewUsername(userData.nombre_usuario);
+        }
+      }
       setLoading(false);
     };
     fetchUser();
@@ -68,6 +83,25 @@ export default function PerfilPage() {
     }
   };
 
+  const handleUpdateUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUsernameError("");
+    setUsernameMessage("");
+
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("usuario")
+      .update({ nombre_usuario: newUsername })
+      .eq("id", user.id);
+
+    if (error) {
+      setUsernameError(`Error al actualizar el nombre: ${error.message}`);
+    } else {
+      setUsernameMessage("¡Nombre de usuario actualizado con éxito!");
+    }
+  };
+
   if (loading) {
     return (
       <div className="page-content">
@@ -85,6 +119,30 @@ export default function PerfilPage() {
       </p>
 
       <div className="profile-forms-container">
+        {/* Formulario de Nombre de Usuario */}
+        <div className="profile-card">
+          <h2>Actualizar Nombre</h2>
+          <form onSubmit={handleUpdateUsername}>
+            <div className="input-group">
+              <label htmlFor="username">Nombre de Usuario</label>
+              <input
+                id="username"
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                required
+              />
+            </div>
+            <button type="submit" className="profile-button">
+              Actualizar Nombre
+            </button>
+            {usernameError && <p className="error-message">{usernameError}</p>}
+            {usernameMessage && (
+              <p className="success-message">{usernameMessage}</p>
+            )}
+          </form>
+        </div>
+
         {/* Formulario de Email */}
         <div className="profile-card">
           <h2>Actualizar Correo</h2>

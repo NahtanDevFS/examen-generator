@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -24,10 +24,30 @@ type SidebarProps = {
 };
 
 export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
-  const [isMobileOpen, setIsMobileOpen] = useState(false); // <-- ESTADO PARA MÓVIL
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+
+  useEffect(() => {
+    const fetchUsername = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from("usuario")
+          .select("nombre_usuario")
+          .eq("id", user.id)
+          .single();
+        if (userData) {
+          setUsername(userData.nombre_usuario);
+        }
+      }
+    };
+    fetchUsername();
+  }, [supabase]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -41,12 +61,10 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
 
   return (
     <>
-      {/* Botón de Hamburguesa solo para móvil */}
       <button className="hamburger-btn" onClick={() => setIsMobileOpen(true)}>
         <FiMenu size={24} />
       </button>
 
-      {/* El Sidebar */}
       <aside
         className={`sidebar ${isExpanded ? "" : "collapsed"} ${
           isMobileOpen ? "mobile-open" : ""
@@ -54,10 +72,20 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
       >
         <div className="sidebar-header">
           <span className="sidebar-logo-text">ExamFlow 🚀</span>
-          {/* Botón de cerrar solo para móvil */}
           <button className="mobile-close-btn" onClick={closeMobileMenu}>
             <FiX size={24} />
           </button>
+        </div>
+
+        {/* --- Sección de Usuario --- */}
+        <div className="sidebar-user-profile">
+          <FiUser size={isExpanded ? 24 : 28} />
+          {isExpanded && (
+            <div className="user-info">
+              <span>Bienvenido,</span>
+              <strong>{username || "Usuario"}</strong>
+            </div>
+          )}
         </div>
 
         <nav className="sidebar-nav">
@@ -108,7 +136,6 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
             <FiLogOut size={22} />
             <span>Cerrar Sesión</span>
           </button>
-          {/* Toggle para colapsar solo en PC */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="sidebar-toggle"
@@ -122,7 +149,6 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Overlay oscuro cuando el menú móvil está abierto */}
       {isMobileOpen && (
         <div className="overlay" onClick={closeMobileMenu}></div>
       )}
