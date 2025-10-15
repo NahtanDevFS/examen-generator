@@ -1,3 +1,4 @@
+// src/app/login/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -83,20 +84,19 @@ export default function LoginPage() {
     // 2. Escucha cambios en el estado (se activa después de CUALQUIER login/OAuth)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Ignoramos el evento inicial y la desautentización
-        if (event !== "SIGNED_IN" || !session) {
-          return;
-        }
+        // El evento SIGNED_IN se dispara después del login con email/pass O
+        // cuando la página se carga después de una redirección de OAuth.
+        if (event === "SIGNED_IN" && session) {
+          setLoading(true);
+          // Guardamos el perfil en localStorage.
+          const success = await saveUserToLocalStorage(session.user.id);
 
-        setLoading(true);
-        // Guardamos el perfil en localStorage.
-        const success = await saveUserToLocalStorage(session.user.id);
-
-        if (success) {
-          handleRedirectToDashboard();
-        } else {
-          setError("Error al cargar perfil. Intenta de nuevo.");
-          setLoading(false);
+          if (success) {
+            handleRedirectToDashboard();
+          } else {
+            setError("Error al cargar perfil. Intenta de nuevo.");
+            setLoading(false);
+          }
         }
       }
     );
@@ -157,13 +157,8 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else if (signInData.session) {
-        // Si el login es exitoso, forzamos la persistencia y la redirección
-        const success = await saveUserToLocalStorage(signInData.user.id);
-        if (success) {
-          handleRedirectToDashboard();
-        } else {
-          setError("Error al cargar perfil. Intenta de nuevo.");
-        }
+        // Si el login es exitoso, onAuthStateChange lo detectará y manejará la redirección.
+        // No es necesario llamar a saveUserToLocalStorage aquí porque el listener ya lo hace.
       }
     }
     setLoading(false);
@@ -171,35 +166,28 @@ export default function LoginPage() {
 
   // FUNCIÓN OAuth (CRÍTICA: Se basa en el onAuthStateChange del useEffect)
   const handleGoogleSignIn = async () => {
-    setLoading(true); // Se inicia el loading aquí
+    setLoading(true);
     setError(null);
     setMessage(null);
-    try {
-      // Importante: No se especifica 'redirectTo' aquí.
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-      });
 
-      if (error) {
-        setError(error.message);
-      }
-    } catch (e: any) {
-      setError(`Error de autenticación: ${e.message}`);
-    } finally {
-      // Si hubo un error que impidió la redirección a Google, debemos quitar el loading.
-      if (error) {
-        // Solo si setError se llamó dentro del try/catch
-        setLoading(false);
-      }
-      // Si la redirección a Google fue exitosa, el loading permanece TRUE hasta que
-      // el navegador regrese y el useEffect lo maneje.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        // Importante: Redirigir de vuelta aquí. El listener se encargará del resto.
+        redirectTo: `${location.origin}/login`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false); // Detener el loading solo si hay un error antes de redirigir.
     }
+    // Si la redirección es exitosa, el estado de carga continuará hasta que el usuario regrese.
   };
 
   if (isPasswordRecovery) {
     return (
       <div className="login-page-wrapper">
-        {/* Contenedor principal */}
         <div className="login-container">
           <div className="login-form">
             <h2>Recuperar Contraseña</h2>
@@ -218,7 +206,7 @@ export default function LoginPage() {
                 />
               </div>
               <button type="submit" className="auth-button" disabled={loading}>
-                Enviar Instrucciones
+                {loading ? "Enviando..." : "Enviar Instrucciones"}
               </button>
             </form>
             {error && <p className="error-message">{error}</p>}
@@ -236,13 +224,10 @@ export default function LoginPage() {
 
   return (
     <div className="login-page-wrapper">
-      {" "}
-      {/* Contenedor principal */}
       <div className="login-container">
         <div className="login-form">
           <h2>{isSignUp ? "Crear Cuenta" : "Iniciar Sesión"}</h2>
 
-          {/* BOTÓN DE GOOGLE */}
           <button
             type="button"
             className="auth-button google-button"
@@ -255,7 +240,6 @@ export default function LoginPage() {
 
           <div className="separator">O</div>
 
-          {/* Formulario existente */}
           <form onSubmit={handleAuth}>
             <div className="input-group">
               <label htmlFor="email">Correo electrónico</label>
@@ -285,7 +269,11 @@ export default function LoginPage() {
               </div>
             )}
             <button type="submit" className="auth-button" disabled={loading}>
-              {isSignUp ? "Registrarse" : "Iniciar Sesión"}
+              {loading
+                ? "Cargando..."
+                : isSignUp
+                ? "Registrarse"
+                : "Iniciar Sesión"}
             </button>
           </form>
 
