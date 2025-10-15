@@ -33,6 +33,7 @@ export default function LoginPage() {
   // Función unificada para obtener y guardar el perfil del usuario en localStorage
   const saveUserToLocalStorage = async (userId: string) => {
     // 1. Obtener el perfil del usuario de la tabla "usuario"
+    // NOTA: Asumimos que la tabla 'usuario' existe y está sincronizada.
     const { data: userData, error: userError } = await supabase
       .from("usuario")
       .select("id, nombre_usuario")
@@ -53,10 +54,10 @@ export default function LoginPage() {
   };
 
   // =======================================================
-  // BUCLE CRÍTICO: Manejar la redirección y el perfil en localStorage
+  // BUCLE CRÍTICO: Manejar la persistencia y la redirección
   // =======================================================
   useEffect(() => {
-    // 1. Verificación inicial de localStorage para evitar el "flash" del dashboard
+    // 1. Verificación inicial de localStorage (detección rápida)
     const storedUser = localStorage.getItem("examflowUser");
     if (storedUser) {
       try {
@@ -71,22 +72,25 @@ export default function LoginPage() {
       }
     }
 
-    // 2. Escucha cambios en el estado (se activa después de OAuth o Magic Link)
+    // 2. Escucha cambios en el estado (se activa después de CUALQUIER login/OAuth)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === "SIGNED_IN" && session) {
-          // Después de que el callback establece las cookies, el cliente detecta SIGNED_IN.
-          setLoading(true); // Bloquear UI mientras procesamos
+        // Ignoramos el evento inicial y la desautenticación
+        if (event !== "SIGNED_IN" || !session) {
+          return;
+        }
 
-          // Guardamos el perfil en localStorage y luego redirigimos.
-          const success = await saveUserToLocalStorage(session.user.id);
+        // Si detectamos un inicio de sesión, lo manejamos (sin importar si es OAuth o Magic Link)
+        setLoading(true);
 
-          if (success) {
-            handleRedirectToDashboard();
-          } else {
-            setError("Error al cargar perfil. Intenta de nuevo.");
-            setLoading(false);
-          }
+        // 3. Guardamos el perfil en localStorage.
+        const success = await saveUserToLocalStorage(session.user.id);
+
+        if (success) {
+          handleRedirectToDashboard();
+        } else {
+          setError("Error al cargar perfil. Intenta de nuevo.");
+          setLoading(false);
         }
       }
     );
@@ -122,7 +126,7 @@ export default function LoginPage() {
     setMessage(null);
 
     if (isSignUp) {
-      // Modo Registro: Solo registramos. La verificación puede requerir un paso extra.
+      // Modo Registro
       const { error, data: signUpData } = await supabase.auth.signUp({
         email,
         password,
@@ -136,16 +140,17 @@ export default function LoginPage() {
         );
       }
     } else {
-      // Modo Inicio de Sesión: Autenticación tradicional
+      // Modo Inicio de Sesión (Email/Password)
       const { error, data: signInData } =
         await supabase.auth.signInWithPassword({
           email,
           password,
         });
+
       if (error) {
         setError(error.message);
       } else if (signInData.session) {
-        // Si el login es exitoso, guardamos el perfil y redirigimos
+        // Si el login es exitoso, forzamos la persistencia y la redirección
         const success = await saveUserToLocalStorage(signInData.user.id);
         if (success) {
           handleRedirectToDashboard();
@@ -157,28 +162,27 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // FUNCIÓN OAuth con la ruta correcta
+  // FUNCIÓN OAuth (NO usa redirectTo)
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
-      // RUTA CORREGIDA: Apunta a /auth/callback (que se resuelve desde src/app/auth/callback/route.ts)
+      // CRÍTICO: No especificamos 'redirectTo'. Supabase usa la URL del sitio
+      // que detectó. La URL en tu panel de Google Cloud (Autorized Redirect URI)
+      // DEBE ser la raíz de tu proyecto (ej: https://examen-generator.vercel.app/).
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
       });
 
       if (error) {
         setError(error.message);
       }
+      // NOTA: El control pasa al onAuthStateChange (useEffect) al volver de Google.
     } catch (e: any) {
       setError(`Error de autenticación: ${e.message}`);
-    } finally {
-      // El loading se mantendrá hasta que el onAuthStateChange redirija
     }
+    // No ponemos setLoading(false) aquí porque onAuthStateChange lo manejará al terminar
   };
 
   if (isPasswordRecovery) {

@@ -31,6 +31,9 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("examflowUser");
+    }
     router.push("/login");
   };
 
