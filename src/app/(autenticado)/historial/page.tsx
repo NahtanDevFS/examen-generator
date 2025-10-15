@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   FiBarChart2,
@@ -72,6 +72,7 @@ export default function HistorialPage() {
   const [filterEtiqueta, setFilterEtiqueta] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
+  const [filterRepeated, setFilterRepeated] = useState<string>(""); // Nuevo estado
 
   const [selectedAttempts, setSelectedAttempts] = useState<number[]>([]);
   const [selectMode, setSelectMode] = useState(false);
@@ -80,6 +81,24 @@ export default function HistorialPage() {
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  // Identifica los intentos originales
+  const originalAttemptIds = useMemo(() => {
+    const examFirstAttempt = new Map<number, number>();
+    // Ordena los intentos por fecha para encontrar el más antiguo
+    const sortedAttempts = [...attempts].sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    sortedAttempts.forEach((attempt) => {
+      if (!examFirstAttempt.has(attempt.examen_id)) {
+        examFirstAttempt.set(attempt.examen_id, attempt.id);
+      }
+    });
+
+    return new Set<number>(examFirstAttempt.values());
+  }, [attempts]);
 
   useEffect(() => {
     applyFilters();
@@ -92,6 +111,8 @@ export default function HistorialPage() {
     filterEtiqueta,
     filterDateFrom,
     filterDateTo,
+    filterRepeated, // Añadir dependencia
+    originalAttemptIds, // Añadir dependencia
   ]);
 
   useEffect(() => {
@@ -150,46 +171,48 @@ export default function HistorialPage() {
   const applyFilters = () => {
     let filtered = [...attempts];
 
-    // Filtro por búsqueda (nombre del examen)
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter((a) =>
         a.examenes?.topic.toLowerCase().includes(lowerSearchTerm)
       );
     }
-
     if (filterDifficulty) {
       filtered = filtered.filter(
         (a) => a.examenes?.difficulty === filterDifficulty
       );
     }
-
     if (filterType) {
       filtered = filtered.filter((a) => a.examenes?.exam_type === filterType);
     }
-
     if (filterCategoria) {
       filtered = filtered.filter(
         (a) => a.examenes?.categoria_id === parseInt(filterCategoria)
       );
     }
-
     if (filterEtiqueta) {
       filtered = filtered.filter((a) =>
         a.examenes?.etiquetas?.includes(parseInt(filterEtiqueta))
       );
     }
-
     if (filterDateFrom) {
       filtered = filtered.filter(
         (a) => new Date(a.created_at) >= new Date(filterDateFrom)
       );
     }
-
     if (filterDateTo) {
       filtered = filtered.filter(
         (a) => new Date(a.created_at) <= new Date(filterDateTo + "T23:59:59")
       );
+    }
+
+    // Lógica del nuevo filtro
+    if (filterRepeated) {
+      if (filterRepeated === "repetidos") {
+        filtered = filtered.filter((a) => !originalAttemptIds.has(a.id));
+      } else if (filterRepeated === "no_repetidos") {
+        filtered = filtered.filter((a) => originalAttemptIds.has(a.id));
+      }
     }
 
     setFilteredAttempts(filtered);
@@ -203,6 +226,7 @@ export default function HistorialPage() {
     setFilterEtiqueta("");
     setFilterDateFrom("");
     setFilterDateTo("");
+    setFilterRepeated(""); // Limpiar nuevo filtro
   };
 
   const hasActiveFilters = () => {
@@ -213,7 +237,8 @@ export default function HistorialPage() {
       filterCategoria ||
       filterEtiqueta ||
       filterDateFrom ||
-      filterDateTo
+      filterDateTo ||
+      filterRepeated // Añadir nuevo filtro
     );
   };
 
@@ -522,7 +547,6 @@ export default function HistorialPage() {
         </div>
       </div>
 
-      {/* BARRA DE BÚSQUEDA */}
       <div className="search-bar-container">
         <div className="search-bar-wrapper">
           <FiSearch className="search-icon" />
@@ -601,6 +625,19 @@ export default function HistorialPage() {
                     {tag.nombre}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Nuevo Filtro */}
+            <div className="filter-group">
+              <label>Estado</label>
+              <select
+                value={filterRepeated}
+                onChange={(e) => setFilterRepeated(e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="no_repetidos">Originales</option>
+                <option value="repetidos">Repetidos</option>
               </select>
             </div>
 
@@ -702,126 +739,135 @@ export default function HistorialPage() {
         </p>
       ) : (
         <div className="history-list">
-          {filteredAttempts.map((attempt) => (
-            <div key={attempt.id} className="history-item-wrapper">
-              {(selectMode || deleteMode) && (
-                <div className="checkbox-container">
-                  <input
-                    type="checkbox"
-                    checked={selectedAttempts.includes(attempt.id)}
-                    onChange={() => toggleSelectAttempt(attempt.id)}
-                    className="select-checkbox"
-                  />
-                </div>
-              )}
-              <Link
-                href={`/historial/${attempt.id}`}
-                className="history-item-link"
-              >
-                <div className="history-item">
-                  <div className="item-header">
-                    <h3>{attempt.examenes?.topic || "Tema Desconocido"}</h3>
-                    <div className="item-score">
-                      <FiBarChart2 />
+          {filteredAttempts.map((attempt) => {
+            const isRepeated = !originalAttemptIds.has(attempt.id);
+            return (
+              <div key={attempt.id} className="history-item-wrapper">
+                {(selectMode || deleteMode) && (
+                  <div className="checkbox-container">
+                    <input
+                      type="checkbox"
+                      checked={selectedAttempts.includes(attempt.id)}
+                      onChange={() => toggleSelectAttempt(attempt.id)}
+                      className="select-checkbox"
+                    />
+                  </div>
+                )}
+                <Link
+                  href={`/historial/${attempt.id}`}
+                  className="history-item-link"
+                >
+                  <div className="history-item">
+                    <div className="item-header">
+                      <h3>{attempt.examenes?.topic || "Tema Desconocido"}</h3>
+                      <div className="item-score">
+                        <FiBarChart2 />
+                        <span>
+                          {(
+                            (attempt.score_correct /
+                              (attempt.score_correct +
+                                attempt.score_incorrect)) *
+                            100
+                          ).toFixed(0)}
+                          %
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="item-details">
+                      <span className="detail-tag type">
+                        <FiFileText />{" "}
+                        {getExamTypeLabel(attempt.examenes?.exam_type || "")}
+                      </span>
+                      {isRepeated && (
+                        <span className="detail-tag repeated">
+                          <FiRepeat /> Repetido
+                        </span>
+                      )}
+                      {attempt.examenes?.difficulty && (
+                        <span
+                          className={`detail-tag difficulty-${attempt.examenes.difficulty}`}
+                        >
+                          <FiAward /> {capitalize(attempt.examenes.difficulty)}
+                        </span>
+                      )}
+                      {attempt.examenes?.categoria_id && (
+                        <span className="detail-tag categoria">
+                          📁 {getCategoriaNombre(attempt.examenes.categoria_id)}
+                        </span>
+                      )}
+                      {attempt.examenes?.has_timer && (
+                        <span className="detail-tag timer">
+                          <FiClock /> {attempt.examenes.timer_minutes} min
+                        </span>
+                      )}
+                    </div>
+
+                    {attempt.examenes?.etiquetas &&
+                      attempt.examenes.etiquetas.length > 0 && (
+                        <div className="item-tags">
+                          {getEtiquetasNombres(attempt.examenes.etiquetas).map(
+                            (tagName, idx) => (
+                              <span key={idx} className="item-tag">
+                                🏷️ {tagName}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      )}
+
+                    <div className="item-body">
+                      <p>
+                        <FiCheckCircle className="icon correct" /> Aciertos:{" "}
+                        {attempt.score_correct}
+                      </p>
+                      <p>
+                        <FiXCircle className="icon incorrect" /> Errores:{" "}
+                        {attempt.score_incorrect}
+                      </p>
+                      {attempt.time_spent_seconds &&
+                        attempt.time_spent_seconds > 0 && (
+                          <p>
+                            <FiClock className="icon" /> Tiempo:{" "}
+                            {formatTime(attempt.time_spent_seconds)}
+                          </p>
+                        )}
+                    </div>
+                    <div className="item-footer">
+                      <FiCalendar className="icon" />
                       <span>
-                        {(
-                          (attempt.score_correct /
-                            (attempt.score_correct + attempt.score_incorrect)) *
-                          100
-                        ).toFixed(0)}
-                        %
+                        {new Date(attempt.created_at).toLocaleDateString(
+                          "es-ES",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )}
                       </span>
                     </div>
                   </div>
-
-                  <div className="item-details">
-                    <span className="detail-tag type">
-                      <FiFileText />{" "}
-                      {getExamTypeLabel(attempt.examenes?.exam_type || "")}
-                    </span>
-                    {attempt.examenes?.difficulty && (
-                      <span
-                        className={`detail-tag difficulty-${attempt.examenes.difficulty}`}
-                      >
-                        <FiAward /> {capitalize(attempt.examenes.difficulty)}
-                      </span>
-                    )}
-                    {attempt.examenes?.categoria_id && (
-                      <span className="detail-tag categoria">
-                        📁 {getCategoriaNombre(attempt.examenes.categoria_id)}
-                      </span>
-                    )}
-                    {attempt.examenes?.has_timer && (
-                      <span className="detail-tag timer">
-                        <FiClock /> {attempt.examenes.timer_minutes} min
-                      </span>
-                    )}
-                  </div>
-
-                  {attempt.examenes?.etiquetas &&
-                    attempt.examenes.etiquetas.length > 0 && (
-                      <div className="item-tags">
-                        {getEtiquetasNombres(attempt.examenes.etiquetas).map(
-                          (tagName, idx) => (
-                            <span key={idx} className="item-tag">
-                              🏷️ {tagName}
-                            </span>
-                          )
-                        )}
-                      </div>
-                    )}
-
-                  <div className="item-body">
-                    <p>
-                      <FiCheckCircle className="icon correct" /> Aciertos:{" "}
-                      {attempt.score_correct}
-                    </p>
-                    <p>
-                      <FiXCircle className="icon incorrect" /> Errores:{" "}
-                      {attempt.score_incorrect}
-                    </p>
-                    {attempt.time_spent_seconds &&
-                      attempt.time_spent_seconds > 0 && (
-                        <p>
-                          <FiClock className="icon" /> Tiempo:{" "}
-                          {formatTime(attempt.time_spent_seconds)}
-                        </p>
-                      )}
-                  </div>
-                  <div className="item-footer">
-                    <FiCalendar className="icon" />
-                    <span>
-                      {new Date(attempt.created_at).toLocaleDateString(
-                        "es-ES",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        }
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-              <div className="item-actions-bar">
-                <button
-                  className="repeat-button"
-                  onClick={(e) => handleRepeatExam(e, attempt.examen_id)}
-                >
-                  <FiRepeat /> Repetir
-                </button>
-                {!selectMode && !deleteMode && (
+                </Link>
+                <div className="item-actions-bar">
                   <button
-                    className="delete-single-button"
-                    onClick={(e) => handleDeleteSingle(e, attempt.id)}
-                    title="Eliminar"
+                    className="repeat-button"
+                    onClick={(e) => handleRepeatExam(e, attempt.examen_id)}
                   >
-                    <FiTrash2 />
+                    <FiRepeat /> Repetir
                   </button>
-                )}
+                  {!selectMode && !deleteMode && (
+                    <button
+                      className="delete-single-button"
+                      onClick={(e) => handleDeleteSingle(e, attempt.id)}
+                      title="Eliminar"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -16,6 +16,7 @@ import {
   FiX,
   FiBarChart2,
   FiTag,
+  FiCpu,
 } from "react-icons/fi";
 
 type SidebarProps = {
@@ -112,6 +113,14 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
           >
             <FiTag size={22} />
             <span>Categorías</span>
+          </Link>
+          <Link
+            href="/aprender"
+            className={pathname === "/aprender" ? "active" : ""}
+            onClick={closeMobileMenu}
+          >
+            <FiCpu size={22} />
+            <span>Aprender y Mejorar</span>
           </Link>
           <Link
             href="/historial"

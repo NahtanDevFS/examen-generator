@@ -608,6 +608,17 @@
   box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
+.detail-tag.timer {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+/* Nuevo estilo para la etiqueta de repetido */
+.detail-tag.repeated {
+  background-color: #f3e5f5; /* Un color morado claro */
+  color: #7b1fa2;
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .historial-header {
