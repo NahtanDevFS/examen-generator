@@ -1,9 +1,9 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { startOfDay } from "date-fns";
 
-// --- TIPOS (Sin cambios) ---
+// --- TIPOS ---
 type AttemptWithExam = {
   created_at: string;
   score_correct: number;
@@ -16,46 +16,90 @@ type AttemptWithExam = {
   } | null;
 };
 
-// --- LÓGICA DE ACTUALIZACIÓN (Simple y Clara) ---
-
-// Función de utilidad para actualizar el progreso de un logro
+// --- FUNCIÓN DE UTILIDAD ---
 async function updateAchievementProgress(
   supabase: any,
   userId: string,
   tipoLogro: string,
   progreso: number
 ) {
-  const { data: achievement } = await supabase
+  console.log(`🔍 Verificando logro: ${tipoLogro}, progreso: ${progreso}`);
+
+  const { data: achievement, error: achievementError } = await supabase
     .from("logros")
     .select("id, meta_requerida")
     .eq("tipo_logro", tipoLogro)
     .single();
 
-  if (!achievement) return;
+  if (achievementError) {
+    console.error(`❌ Error al buscar logro ${tipoLogro}:`, achievementError);
+    return;
+  }
 
-  const { data: currentProgress } = await supabase
+  if (!achievement) {
+    console.warn(`⚠️ No se encontró el logro: ${tipoLogro}`);
+    return;
+  }
+
+  console.log(
+    `✅ Logro encontrado: ${tipoLogro}, meta: ${achievement.meta_requerida}`
+  );
+
+  const { data: currentProgress, error: progressError } = await supabase
     .from("progreso_logros_usuario")
     .select("progreso_actual, desbloqueado_en")
     .eq("user_id", userId)
     .eq("logro_id", achievement.id)
     .single();
 
+  if (progressError && progressError.code !== "PGRST116") {
+    console.error(
+      `❌ Error al buscar progreso de ${tipoLogro}:`,
+      progressError
+    );
+  }
+
   if (currentProgress?.desbloqueado_en) {
+    console.log(`⏭️ Logro ${tipoLogro} ya desbloqueado, saltando...`);
     return;
   }
 
   const isUnlocked = progreso >= achievement.meta_requerida;
 
-  await supabase.from("progreso_logros_usuario").upsert({
-    user_id: userId,
-    logro_id: achievement.id,
-    progreso_actual: progreso,
-    desbloqueado_en: isUnlocked ? new Date().toISOString() : null,
-    visto_por_usuario: currentProgress?.desbloqueado_en ? true : !isUnlocked,
-  });
+  console.log(
+    `📊 ${tipoLogro}: progreso=${progreso}, meta=${achievement.meta_requerida}, desbloqueado=${isUnlocked}`
+  );
+
+  const { error: upsertError } = await supabase
+    .from("progreso_logros_usuario")
+    .upsert(
+      {
+        user_id: userId,
+        logro_id: achievement.id,
+        progreso_actual: progreso,
+        desbloqueado_en: isUnlocked ? new Date().toISOString() : null,
+        visto_por_usuario: false, // ← Cambiado: siempre false para nuevos logros
+      },
+      {
+        onConflict: "user_id,logro_id", // ← Especificamos la constraint
+      }
+    );
+
+  if (upsertError) {
+    console.error(
+      `❌ Error al actualizar progreso de ${tipoLogro}:`,
+      upsertError
+    );
+  } else {
+    console.log(
+      `✨ ${
+        isUnlocked ? "🎉 LOGRO DESBLOQUEADO" : "📈 Progreso actualizado"
+      }: ${tipoLogro}`
+    );
+  }
 }
 
-// Lógica principal para verificar todos los logros
+// --- LÓGICA PRINCIPAL ---
 async function checkAchievements(supabase: any, userId: string) {
   const { data: attemptsData } = await supabase
     .from("intentos_examen")
@@ -78,7 +122,7 @@ async function checkAchievements(supabase: any, userId: string) {
 
   if (attempts.length === 0) return;
 
-  // --- Cálculos de logros (uno por uno, para claridad) ---
+  // --- Cálculos de logros ---
   const totalExams = attempts.length;
   await updateAchievementProgress(
     supabase,
@@ -245,14 +289,35 @@ async function checkAchievements(supabase: any, userId: string) {
   await updateAchievementProgress(supabase, userId, "RACHA_7_DIAS", streak);
 }
 
-// --- FUNCIÓN EXPORTADA (CORREGIDA Y SIMPLIFICADA) ---
+// --- FUNCIÓN EXPORTADA (USANDO @supabase/ssr) ---
 export async function POST(req: NextRequest) {
-  // Se crea el cliente de Supabase de la forma estándar
-  const supabase = createRouteHandlerClient({ cookies });
-
   try {
-    // Se obtiene la sesión del usuario. Este 'await' es crucial y
-    // resuelve el problema de la lectura de cookies asíncrona.
+    // ✅ CRÍTICO: Awaiteamos cookies() en Next.js 15+
+    const cookieStore = await cookies();
+
+    // Creamos el cliente usando @supabase/ssr (método moderno)
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // En Route Handlers, setAll puede fallar si se llama después de la respuesta
+            }
+          },
+        },
+      }
+    );
+
+    // Obtenemos la sesión
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -261,8 +326,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Una vez que tenemos la sesión, ejecutamos la lógica de logros
-    // y esperamos a que termine con 'await'.
+    // Ejecutamos la lógica de logros
     await checkAchievements(supabase, session.user.id);
 
     return NextResponse.json({
