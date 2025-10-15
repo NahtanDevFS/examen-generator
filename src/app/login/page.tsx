@@ -106,7 +106,7 @@ export default function LoginPage() {
         provider: "google",
         options: {
           // Usamos la ruta de tu API Handler que está en src/app/(autenticado)/auth/callback/route.ts
-          redirectTo: `${window.location.origin}/autenticado/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
