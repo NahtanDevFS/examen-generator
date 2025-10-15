@@ -425,6 +425,11 @@ export default function HomePage() {
 
       if (attemptError) {
         setError(`Error al guardar tu resultado: ${attemptError.message}`);
+      } else {
+        // --- INICIO DE LA LÓGICA DE LOGROS ---
+        // Dispara la actualización de logros en segundo plano
+        fetch("/api/update-achievements", { method: "POST" });
+        // --- FIN DE LA LÓGICA DE LOGROS ---
       }
 
       setResults(calculatedResults);
@@ -486,6 +491,11 @@ export default function HomePage() {
 
         if (attemptError) {
           setError(`Error al guardar tu resultado: ${attemptError.message}`);
+        } else {
+          // --- INICIO DE LA LÓGICA DE LOGROS ---
+          // Dispara la actualización de logros en segundo plano
+          fetch("/api/update-achievements", { method: "POST" });
+          // --- FIN DE LA LÓGICA DE LOGROS ---
         }
 
         setResults(calculatedResults);

@@ -17,14 +17,20 @@ import {
   FiBarChart2,
   FiTag,
   FiCpu,
+  FiAward,
 } from "react-icons/fi";
 
 type SidebarProps = {
   isExpanded: boolean;
   setIsExpanded: (isExpanded: boolean) => void;
+  hasNewAchievements: boolean;
 };
 
-export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
+export default function Sidebar({
+  isExpanded,
+  setIsExpanded,
+  hasNewAchievements,
+}: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const router = useRouter();
@@ -129,6 +135,17 @@ export default function Sidebar({ isExpanded, setIsExpanded }: SidebarProps) {
           >
             <FiClock size={22} />
             <span>Historial</span>
+          </Link>
+          <Link
+            href="/logros"
+            className={pathname === "/logros" ? "active" : ""}
+            onClick={closeMobileMenu}
+          >
+            <FiAward size={22} />
+            <span>Logros</span>
+            {hasNewAchievements && (
+              <span className="notification-badge">!</span>
+            )}
           </Link>
           <Link
             href="/perfil"

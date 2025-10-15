@@ -1,0 +1,62 @@
+/* src/app/(autenticado)/logros/logros.css */
+.logros-page .summary-card {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.logros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+.logro-card {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 12px;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  border-left: 5px solid #6c757d;
+  opacity: 0.7;
+}
+.logro-card.unlocked {
+  background: #fff;
+  opacity: 1;
+}
+.logro-card.fácil.unlocked {
+  border-color: #28a745;
+}
+.logro-card.intermedio.unlocked {
+  border-color: #ffc107;
+}
+.logro-card.difícil.unlocked {
+  border-color: #dc3545;
+}
+
+.logro-icon {
+  font-size: 2.5rem;
+}
+.logro-info h4 {
+  margin: 0 0 0.5rem;
+}
+.logro-info p {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0 0 1rem;
+}
+.logro-progress-bar {
+  background: #e9ecef;
+  border-radius: 20px;
+  height: 8px;
+  overflow: hidden;
+}
+.logro-progress-fill {
+  background: #6c757d;
+  height: 100%;
+  border-radius: 20px;
+}
+.logro-card.unlocked .logro-progress-fill {
+  background: #28a745;
+}

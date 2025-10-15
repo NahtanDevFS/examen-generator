@@ -16,16 +16,17 @@ interface ExamflowUser {
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(""); // <-- 1. Nuevo estado para el nombre de usuario
   const [isSignUp, setIsSignUp] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true); // Inicia en true para manejar la carga inicial
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
   const supabase = createClient();
 
-  // Función unificada para obtener y guardar el perfil del usuario
+  // ... (resto de las funciones como saveUserToLocalStorage, handleSuccessfulSignIn, etc.)
   const saveUserToLocalStorage = async (userId: string) => {
     const { data: userData, error: userError } = await supabase
       .from("usuario")
@@ -45,14 +46,12 @@ export default function LoginPage() {
       };
       localStorage.setItem("examflowUser", JSON.stringify(userToStore));
     } else {
-      // Si el perfil no existe, creamos uno temporal para nuevos usuarios de OAuth
       const userToStore: ExamflowUser = { id: userId, name: "Usuario" };
       localStorage.setItem("examflowUser", JSON.stringify(userToStore));
     }
     return true;
   };
 
-  // Función centralizada para manejar el login exitoso
   const handleSuccessfulSignIn = async (session: Session | null) => {
     if (!session) {
       setLoading(false);
@@ -61,7 +60,6 @@ export default function LoginPage() {
 
     const success = await saveUserToLocalStorage(session.user.id);
     if (success) {
-      // Redirección forzada para asegurar que el estado de la app se actualice
       window.location.href = "/";
     } else {
       setError("No se pudo cargar tu perfil. Por favor, intenta de nuevo.");
@@ -70,23 +68,20 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    // 1. Revisa si ya hay un usuario en localStorage al cargar
     const storedUser = localStorage.getItem("examflowUser");
     if (storedUser) {
       window.location.href = "/";
       return;
     }
 
-    // 2. Proactivamente intenta obtener la sesión. Esto captura el redirect de OAuth.
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         handleSuccessfulSignIn(session);
       } else {
-        setLoading(false); // No hay sesión, deja de cargar para mostrar el formulario
+        setLoading(false);
       }
     });
 
-    // 3. Escucha futuros cambios en el estado de autenticación.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_IN" && session) {
@@ -106,31 +101,40 @@ export default function LoginPage() {
     setError(null);
     setMessage(null);
 
-    const authMethod = isSignUp
-      ? supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { nombre_usuario: "Nuevo Usuario" } },
-        })
-      : supabase.auth.signInWithPassword({ email, password });
-
-    const { error } = await authMethod;
-
-    if (error) {
-      setError(error.message);
-    } else if (isSignUp) {
-      setMessage(
-        "¡Registro exitoso! Revisa tu correo para confirmar tu cuenta."
-      );
-    }
-    // Para signIn, el listener onAuthStateChange se encargará de la redirección
-
-    if (!isSignUp) {
-      // Si no es un registro, puede que el setLoading necesite ser desactivado si hay un error
+    // 2. Modificamos el método de autenticación
+    if (isSignUp) {
+      // Lógica de registro
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            nombre_usuario: username, // <-- Pasamos el nombre aquí
+          },
+        },
+      });
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage(
+          "¡Registro exitoso! Revisa tu correo para confirmar tu cuenta."
+        );
+      }
+      setLoading(false);
+    } else {
+      // Lógica de inicio de sesión
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        setError(error.message);
+      }
       setLoading(false);
     }
   };
 
+  // ... (resto de las funciones: handleGoogleSignIn, handlePasswordRecovery)
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
@@ -164,6 +168,7 @@ export default function LoginPage() {
     setLoading(false);
   };
 
+  // ... (JSX para loading y recuperación de contraseña)
   if (loading) {
     return (
       <div className="login-page-wrapper">
@@ -225,6 +230,19 @@ export default function LoginPage() {
           </button>
           <div className="separator">O</div>
           <form onSubmit={handleAuth}>
+            {/* 3. Añadimos el nuevo campo de nombre de usuario en el formulario */}
+            {isSignUp && (
+              <div className="input-group">
+                <label htmlFor="username">Nombre de Usuario</label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <div className="input-group">
               <label htmlFor="email">Correo electrónico</label>
               <input
