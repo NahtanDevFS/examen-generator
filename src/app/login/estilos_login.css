@@ -73,6 +73,48 @@
   background-color: #0056b3;
 }
 
+/* NUEVOS ESTILOS PARA GOOGLE Y SEPARADOR */
+.login-page-wrapper .google-button {
+  background-color: white;
+  color: #333;
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 500;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.login-page-wrapper .google-button:hover {
+  background-color: #f0f0f0;
+}
+
+.login-page-wrapper .separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #aaa;
+  margin: 1.5rem 0;
+}
+
+.login-page-wrapper .separator::before,
+.login-page-wrapper .separator::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.login-page-wrapper .separator:not(:empty)::before {
+  margin-right: 0.5rem;
+}
+
+.login-page-wrapper .separator:not(:empty)::after {
+  margin-left: 0.5rem;
+}
+/* FIN DE NUEVOS ESTILOS */
+
 .login-page-wrapper .toggle-auth {
   margin-top: 1.5rem;
   color: #555;
