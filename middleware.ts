@@ -18,11 +18,14 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
+          // 1. Establece la cookie en la solicitud entrante (para la siguiente función)
           request.cookies.set({
             name,
             value,
             ...options,
           });
+          // 2. CREA UNA NUEVA RESPUESTA para que contenga las nuevas cookies
+          // ESTE PASO ES VITAL para que la cookie se envíe al navegador.
           response = NextResponse.next({
             request: {
               headers: request.headers,
@@ -75,6 +78,15 @@ export async function middleware(request: NextRequest) {
       // Vuelve a cargar la página para que el middleware se ejecute con la sesión ya establecida.
       return NextResponse.redirect(request.nextUrl.origin + "/update-password");
     }
+  }
+
+  // Lógica de protección de rutas (si estás en /login y tienes sesión, redirige a /)
+  const isAuthenticated = !!session;
+  const isLoginPage = request.nextUrl.pathname === "/login";
+
+  if (isAuthenticated && isLoginPage) {
+    // Si ya está autenticado e intenta ir a /login, lo manda a la raíz.
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return response;
