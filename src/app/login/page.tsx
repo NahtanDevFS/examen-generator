@@ -7,6 +7,12 @@ import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc"; // Importamos el ícono de Google
 import "./estilos_login.css";
 
+// Definimos el tipo de objeto que guardaremos en localStorage
+interface ExamflowUser {
+  id: string;
+  name: string;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,33 +20,77 @@ export default function LoginPage() {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false); // Añadido para gestionar el estado de carga
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
   const supabase = createClient();
 
+  const handleRedirectToDashboard = () => {
+    router.push("/");
+    router.refresh();
+  };
+
+  // Función unificada para obtener y guardar el perfil del usuario en localStorage
+  const saveUserToLocalStorage = async (userId: string) => {
+    // 1. Obtener el perfil del usuario de la tabla "usuario"
+    const { data: userData, error: userError } = await supabase
+      .from("usuario")
+      .select("id, nombre_usuario")
+      .eq("id", userId)
+      .single();
+
+    if (!userError && userData) {
+      const userToStore: ExamflowUser = {
+        id: userData.id,
+        name: userData.nombre_usuario,
+      };
+      localStorage.setItem("examflowUser", JSON.stringify(userToStore));
+      return true;
+    } else {
+      console.error("Error al obtener datos de perfil del usuario:", userError);
+      return false;
+    }
+  };
+
   // =======================================================
-  // NUEVO BLOQUE CRÍTICO: Manejar la redirección de la sesión
+  // BUCLE CRÍTICO: Manejar la redirección y el perfil en localStorage
   // =======================================================
   useEffect(() => {
-    // Escucha cualquier cambio en el estado de autenticación (incluyendo OAuth y Magic Link)
+    // 1. Verificación inicial de localStorage para evitar el "flash" del dashboard
+    const storedUser = localStorage.getItem("examflowUser");
+    if (storedUser) {
+      try {
+        const user: ExamflowUser = JSON.parse(storedUser);
+        if (user && user.id) {
+          // Si el usuario está en localStorage, redirigimos inmediatamente.
+          handleRedirectToDashboard();
+          return;
+        }
+      } catch (e) {
+        localStorage.removeItem("examflowUser");
+      }
+    }
+
+    // 2. Escucha cambios en el estado (se activa después de OAuth o Magic Link)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Cuando el usuario ha iniciado sesión (tras el éxito del callback de la API)
         if (event === "SIGNED_IN" && session) {
-          // Nota: Aquí podrías añadir lógica para guardar datos de perfil en localStorage/cookies
-          // si fuera necesario para tu middleware, pero si el middleware
-          // solo revisa la existencia de la sesión Supabase, esto debería bastar.
+          // Después de que el callback establece las cookies, el cliente detecta SIGNED_IN.
+          setLoading(true); // Bloquear UI mientras procesamos
 
-          // Redirigir al dashboard y forzar la recarga para que el middleware
-          // lea la nueva cookie establecida por el Server Client en el callback.
-          router.push("/");
-          router.refresh();
+          // Guardamos el perfil en localStorage y luego redirigimos.
+          const success = await saveUserToLocalStorage(session.user.id);
+
+          if (success) {
+            handleRedirectToDashboard();
+          } else {
+            setError("Error al cargar perfil. Intenta de nuevo.");
+            setLoading(false);
+          }
         }
       }
     );
 
-    // Limpia el listener al desmontar el componente
     return () => {
       authListener.subscription.unsubscribe();
     };
@@ -49,6 +99,7 @@ export default function LoginPage() {
 
   const handlePasswordRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     setError(null);
     setMessage(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -61,6 +112,7 @@ export default function LoginPage() {
         "Si existe una cuenta, se ha enviado un enlace para restablecer la contraseña a tu correo."
       );
     }
+    setLoading(false);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -70,8 +122,12 @@ export default function LoginPage() {
     setMessage(null);
 
     if (isSignUp) {
-      // Modo Registro
-      const { error } = await supabase.auth.signUp({ email, password });
+      // Modo Registro: Solo registramos. La verificación puede requerir un paso extra.
+      const { error, data: signUpData } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { nombre_usuario: "Nuevo Usuario" } },
+      });
       if (error) {
         setError(error.message);
       } else {
@@ -80,32 +136,37 @@ export default function LoginPage() {
         );
       }
     } else {
-      // Modo Inicio de Sesión
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Modo Inicio de Sesión: Autenticación tradicional
+      const { error, data: signInData } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
       if (error) {
         setError(error.message);
-      } else {
-        router.push("/");
-        router.refresh();
+      } else if (signInData.session) {
+        // Si el login es exitoso, guardamos el perfil y redirigimos
+        const success = await saveUserToLocalStorage(signInData.user.id);
+        if (success) {
+          handleRedirectToDashboard();
+        } else {
+          setError("Error al cargar perfil. Intenta de nuevo.");
+        }
       }
     }
     setLoading(false);
   };
 
-  // FUNCIÓN CORREGIDA: Iniciar sesión con Google OAuth
+  // FUNCIÓN OAuth con la ruta correcta
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
-      // Configuramos la URL de redirección a tu API Handler
+      // RUTA CORREGIDA: Apunta a /auth/callback (que se resuelve desde src/app/auth/callback/route.ts)
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // Usamos la ruta de tu API Handler que está en src/app/(autenticado)/auth/callback/route.ts
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
@@ -113,11 +174,10 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       }
-      // NOTA: No hacemos router.push aquí. El onAuthStateChange se encargará de la redirección
     } catch (e: any) {
       setError(`Error de autenticación: ${e.message}`);
     } finally {
-      setLoading(false);
+      // El loading se mantendrá hasta que el onAuthStateChange redirija
     }
   };
 
