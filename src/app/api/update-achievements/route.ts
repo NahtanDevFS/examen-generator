@@ -70,20 +70,30 @@ async function updateAchievementProgress(
     `📊 ${tipoLogro}: progreso=${progreso}, meta=${achievement.meta_requerida}, desbloqueado=${isUnlocked}`
   );
 
+  // ✅ CORRECCIÓN: Construimos el objeto a actualizar dinámicamente
+  const dataToUpsert: {
+    user_id: string;
+    logro_id: number;
+    progreso_actual: number;
+    desbloqueado_en: string | null;
+    visto_por_usuario?: boolean;
+  } = {
+    user_id: userId,
+    logro_id: achievement.id,
+    progreso_actual: progreso,
+    desbloqueado_en: isUnlocked ? new Date().toISOString() : null,
+  };
+
+  // Solo marcamos como "no visto" si el logro se acaba de desbloquear
+  if (isUnlocked) {
+    dataToUpsert.visto_por_usuario = false;
+  }
+
   const { error: upsertError } = await supabase
     .from("progreso_logros_usuario")
-    .upsert(
-      {
-        user_id: userId,
-        logro_id: achievement.id,
-        progreso_actual: progreso,
-        desbloqueado_en: isUnlocked ? new Date().toISOString() : null,
-        visto_por_usuario: false, // ← Cambiado: siempre false para nuevos logros
-      },
-      {
-        onConflict: "user_id,logro_id", // ← Especificamos la constraint
-      }
-    );
+    .upsert(dataToUpsert, {
+      onConflict: "user_id,logro_id",
+    });
 
   if (upsertError) {
     console.error(
