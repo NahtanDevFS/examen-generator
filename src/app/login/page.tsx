@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import "./estilos_login.css";
 import type { Session } from "@supabase/supabase-js";
 
-// Definimos el tipo de objeto que guardaremos en localStorage
 interface ExamflowUser {
   id: string;
   name: string;
@@ -16,7 +15,7 @@ interface ExamflowUser {
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState(""); // <-- 1. Nuevo estado para el nombre de usuario
+  const [username, setUsername] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +23,19 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
-  // ... (resto de las funciones como saveUserToLocalStorage, handleSuccessfulSignIn, etc.)
+  // Verificamos si hay un mensaje de éxito en la URL
+  useEffect(() => {
+    const urlMessage = searchParams.get("message");
+    if (urlMessage === "password_updated") {
+      setMessage(
+        "✅ ¡Contraseña actualizada! Ya puedes iniciar sesión con tu nueva contraseña."
+      );
+    }
+  }, [searchParams]);
+
   const saveUserToLocalStorage = async (userId: string) => {
     const { data: userData, error: userError } = await supabase
       .from("usuario")
@@ -101,15 +110,13 @@ export default function LoginPage() {
     setError(null);
     setMessage(null);
 
-    // 2. Modificamos el método de autenticación
     if (isSignUp) {
-      // Lógica de registro
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            nombre_usuario: username, // <-- Pasamos el nombre aquí
+            nombre_usuario: username,
           },
         },
       });
@@ -122,7 +129,6 @@ export default function LoginPage() {
       }
       setLoading(false);
     } else {
-      // Lógica de inicio de sesión
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -134,7 +140,6 @@ export default function LoginPage() {
     }
   };
 
-  // ... (resto de las funciones: handleGoogleSignIn, handlePasswordRecovery)
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
@@ -162,17 +167,20 @@ export default function LoginPage() {
       setError(error.message);
     } else {
       setMessage(
-        "Si la cuenta existe, se ha enviado un enlace de recuperación a tu correo."
+        "✅ Si la cuenta existe, se ha enviado un enlace de recuperación a tu correo."
       );
     }
     setLoading(false);
   };
 
-  // ... (JSX para loading y recuperación de contraseña)
   if (loading) {
     return (
       <div className="login-page-wrapper">
-        <div>Cargando...</div>
+        <div className="login-container">
+          <div className="login-form">
+            <h2>Cargando...</h2>
+          </div>
+        </div>
       </div>
     );
   }
@@ -230,7 +238,6 @@ export default function LoginPage() {
           </button>
           <div className="separator">O</div>
           <form onSubmit={handleAuth}>
-            {/* 3. Añadimos el nuevo campo de nombre de usuario en el formulario */}
             {isSignUp && (
               <div className="input-group">
                 <label htmlFor="username">Nombre de Usuario</label>
