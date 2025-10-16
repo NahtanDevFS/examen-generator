@@ -1,3 +1,4 @@
+//update-password/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,15 +18,16 @@ export default function UpdatePasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // Verificamos si hay un token de recuperación en la URL
     const checkRecoveryToken = async () => {
       try {
+        // 👇 Primero, cierra cualquier sesión activa
+        await supabase.auth.signOut();
+
         const hashParams = new URLSearchParams(
           window.location.hash.substring(1)
         );
         const type = hashParams.get("type");
 
-        // Solo procesamos si es una recuperación de contraseña
         if (type === "recovery") {
           console.log("✅ Token de recuperación detectado");
           setStatus("ready");
