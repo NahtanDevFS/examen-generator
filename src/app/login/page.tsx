@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
@@ -12,7 +12,8 @@ interface ExamflowUser {
   name: string;
 }
 
-export default function LoginPage() {
+// Componente separado que usa useSearchParams
+function LoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -292,5 +293,24 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Componente principal con Suspense
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="login-page-wrapper">
+          <div className="login-container">
+            <div className="login-form">
+              <h2>Cargando...</h2>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
