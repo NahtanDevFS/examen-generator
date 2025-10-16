@@ -1,63 +1,83 @@
+// src/app/(autenticado)/layout.tsx
+
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import "./globals-autenticado.css";
-import React from "react";
 import { createClient } from "@/lib/supabase/client";
+import "./globals-autenticado.css";
 
 export default function AutenticadoLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const [hasNewAchievements, setHasNewAchievements] = useState(false); // <-- Estado centralizado
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [hasNewAchievements, setHasNewAchievements] = useState(false);
+  const pathname = usePathname();
   const supabase = createClient();
 
-  // Función para verificar notificaciones, ahora vive en el layout
-  const checkNewAchievements = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return;
-
-    const { data, error } = await supabase
-      .from("progreso_logros_usuario")
-      .select("id")
-      .eq("user_id", userData.user.id)
-      .eq("visto_por_usuario", false)
-      .limit(1);
-
-    if (data && data.length > 0) {
-      setHasNewAchievements(true);
-    } else {
-      setHasNewAchievements(false);
+  const checkForNewAchievements = useCallback(async () => {
+    if (pathname === "/logros") {
+      if (hasNewAchievements) {
+        setHasNewAchievements(false);
+      }
+      return;
     }
-  };
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count, error } = await supabase
+        .from("progreso_logros_usuario")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("visto_por_usuario", false);
+
+      if (error) {
+        throw error;
+      }
+
+      setHasNewAchievements((count ?? 0) > 0);
+    } catch (error) {
+      console.error("Polling for achievements failed:", error);
+    }
+  }, [pathname, supabase, hasNewAchievements]);
 
   useEffect(() => {
-    checkNewAchievements();
-  }, []);
+    checkForNewAchievements();
+    const intervalId = setInterval(checkForNewAchievements, 5000);
+    return () => clearInterval(intervalId);
+  }, [checkForNewAchievements]);
+
+  // ✅ CORRECCIÓN: Comprobamos si 'children' es un elemento válido antes de clonar.
+  // Esto soluciona el error de TypeScript de forma segura.
+  let pageContent = children;
+  if (pathname === "/logros" && React.isValidElement(children)) {
+    pageContent = React.cloneElement(
+      children as React.ReactElement<{
+        setHasNewAchievements?: (value: boolean) => void;
+      }>,
+      {
+        setHasNewAchievements,
+      }
+    );
+  }
 
   return (
     <div
-      className={`layout-container ${
-        isSidebarExpanded ? "sidebar-expanded" : "sidebar-collapsed"
-      }`}
+      className={`layout-container ${isExpanded ? "expanded" : "collapsed"}`}
     >
       <Sidebar
-        isExpanded={isSidebarExpanded}
-        setIsExpanded={setIsSidebarExpanded}
-        hasNewAchievements={hasNewAchievements} // <-- Pasa el estado al Sidebar
+        isExpanded={isExpanded}
+        setIsExpanded={setIsExpanded}
+        hasNewAchievements={hasNewAchievements}
       />
-      <main className="main-content">
-        {/* Inyectamos la función para actualizar el estado en los componentes hijos */}
-        {React.Children.map(children, (child) => {
-          if (React.isValidElement(child)) {
-            return React.cloneElement(child, { setHasNewAchievements } as any);
-          }
-          return child;
-        })}
-      </main>
+      <main className="main-content">{pageContent}</main>
     </div>
   );
 }
