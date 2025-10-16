@@ -10,6 +10,7 @@ import {
   FiBarChart2,
   FiCheckCircle,
   FiDownload,
+  FiStar, // ✅ Icono para logros
 } from "react-icons/fi";
 import {
   LineChart,
@@ -43,6 +44,7 @@ type StatsData = {
   streak: number;
   favoriteType: string;
   favoriteDifficulty: string;
+  completedAchievements: number; // ✅ Nuevo estado para logros
 };
 
 type ChartData = {
@@ -81,6 +83,7 @@ export default function EstadisticasPage() {
     streak: 0,
     favoriteType: "N/A",
     favoriteDifficulty: "N/A",
+    completedAchievements: 0, // ✅ Inicializar estado
   });
   const [progressData, setProgressData] = useState<ChartData[]>([]);
   const [topicStats, setTopicStats] = useState<TopicStats[]>([]);
@@ -112,6 +115,13 @@ export default function EstadisticasPage() {
     } else if (timeRange === "90") {
       startDate = subDays(new Date(), 90);
     }
+
+    // ✅ OBTENER LOGROS COMPLETADOS
+    const { count: achievementsCount } = await supabase
+      .from("progreso_logros_usuario")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .not("desbloqueado_en", "is", null);
 
     // Obtener todos los intentos con información del examen
     const { data: attempts } = await supabase
@@ -210,6 +220,7 @@ export default function EstadisticasPage() {
       favoriteDifficulty:
         favoriteDifficulty.charAt(0).toUpperCase() +
         favoriteDifficulty.slice(1),
+      completedAchievements: achievementsCount || 0, // ✅ Actualizar estado
     });
 
     // Datos para gráfico de progreso temporal
@@ -586,6 +597,17 @@ export default function EstadisticasPage() {
           <div className="stat-content">
             <p className="stat-label">Total Intentos</p>
             <h2 className="stat-value">{stats.totalAttempts}</h2>
+          </div>
+        </div>
+
+        {/* ✅ NUEVA TARJETA DE LOGROS */}
+        <div className="stat-card">
+          <div className="stat-icon" style={{ backgroundColor: "#fffde7" }}>
+            <FiStar size={28} color="#fbc02d" />
+          </div>
+          <div className="stat-content">
+            <p className="stat-label">Logros Completados</p>
+            <h2 className="stat-value">{stats.completedAchievements} / 20</h2>
           </div>
         </div>
       </div>
