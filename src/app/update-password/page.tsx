@@ -1,4 +1,4 @@
-//update-password/page.tsx
+// update-password/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,42 +7,44 @@ import { useRouter } from "next/navigation";
 import "./update-password.css";
 
 export default function UpdatePasswordPage() {
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(
-    "loading"
-  );
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Ahora controla la verificación inicial
+  const [isValidSession, setIsValidSession] = useState(false);
+
   const router = useRouter();
   const supabase = createClient();
 
+  // Verifica si hay una sesión de recuperación válida (gracias al middleware)
   useEffect(() => {
-    const checkRecoveryToken = async () => {
+    const checkRecoverySession = async () => {
       try {
-        // 👇 Primero, cierra cualquier sesión activa
-        await supabase.auth.signOut();
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-        const hashParams = new URLSearchParams(
-          window.location.hash.substring(1)
-        );
-        const type = hashParams.get("type");
-
-        if (type === "recovery") {
-          console.log("✅ Token de recuperación detectado");
-          setStatus("ready");
+        if (error || !user) {
+          console.error("❌ No hay una sesión de recuperación válida");
+          setIsValidSession(false);
         } else {
-          console.error("❌ No es un enlace de recuperación válido");
-          setStatus("error");
+          // Opcional: podrías verificar si el usuario tiene el rol o metadata esperada,
+          // pero normalmente `getUser()` es suficiente tras un callback de recovery.
+          console.log("✅ Sesión de recuperación válida detectada");
+          setIsValidSession(true);
         }
       } catch (err) {
-        console.error("Error al verificar el token:", err);
-        setStatus("error");
+        console.error("Error al verificar la sesión:", err);
+        setIsValidSession(false);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    checkRecoveryToken();
-  }, []);
+    checkRecoverySession();
+  }, [supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,16 +60,14 @@ export default function UpdatePasswordPage() {
       return;
     }
 
+    setIsLoading(true);
     try {
-      // Actualizamos la contraseña
       const { error: updateError } = await supabase.auth.updateUser({
-        password: password,
+        password,
       });
 
       if (updateError) {
-        console.error("Error al actualizar:", updateError);
-
-        // Si el token expiró o es inválido
+        console.error("Error al actualizar la contraseña:", updateError);
         if (
           updateError.message.includes("expired") ||
           updateError.message.includes("invalid")
@@ -78,27 +78,28 @@ export default function UpdatePasswordPage() {
         } else {
           setError(updateError.message);
         }
+        setIsLoading(false);
         return;
       }
 
-      console.log("✅ Contraseña actualizada correctamente");
       setSuccess(true);
 
-      // Esperamos 2 segundos y cerramos sesión
-      setTimeout(async () => {
-        await supabase.auth.signOut();
-        // Limpiamos localStorage
-        localStorage.removeItem("examflowUser");
-        // Redirigimos al login con mensaje de éxito
+      // Cerrar sesión y redirigir
+      await supabase.auth.signOut();
+      localStorage.removeItem("examflowUser");
+
+      setTimeout(() => {
         router.push("/login?message=password_updated");
       }, 2000);
     } catch (err: any) {
       console.error("Error inesperado:", err);
       setError("Ocurrió un error inesperado. Intenta de nuevo.");
+      setIsLoading(false);
     }
   };
 
-  if (status === "loading") {
+  // Mientras verifica la sesión
+  if (isLoading && !success) {
     return (
       <div className="update-password-wrapper">
         <div className="update-password-container">
@@ -111,7 +112,8 @@ export default function UpdatePasswordPage() {
     );
   }
 
-  if (status === "error") {
+  // Si no hay sesión válida (enlace inválido/expirado)
+  if (!isValidSession && !success) {
     return (
       <div className="update-password-wrapper">
         <div className="update-password-container">
@@ -132,6 +134,7 @@ export default function UpdatePasswordPage() {
     );
   }
 
+  // Éxito
   if (success) {
     return (
       <div className="update-password-wrapper">
@@ -148,6 +151,7 @@ export default function UpdatePasswordPage() {
     );
   }
 
+  // Formulario de actualización (solo se muestra si isValidSession === true)
   return (
     <div className="update-password-wrapper">
       <div className="update-password-container">
@@ -165,6 +169,7 @@ export default function UpdatePasswordPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
+                disabled={isLoading}
               />
             </div>
             <div className="input-group">
@@ -177,11 +182,12 @@ export default function UpdatePasswordPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={6}
+                disabled={isLoading}
               />
             </div>
             {error && <p className="error-message">{error}</p>}
-            <button type="submit" className="auth-button">
-              Actualizar Contraseña
+            <button type="submit" className="auth-button" disabled={isLoading}>
+              {isLoading ? "Actualizando..." : "Actualizar Contraseña"}
             </button>
           </form>
         </div>
