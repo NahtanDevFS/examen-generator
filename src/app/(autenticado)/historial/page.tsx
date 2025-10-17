@@ -72,7 +72,8 @@ export default function HistorialPage() {
   const [filterEtiqueta, setFilterEtiqueta] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
-  const [filterRepeated, setFilterRepeated] = useState<string>(""); // Nuevo estado
+  const [filterRepeated, setFilterRepeated] = useState<string>("");
+  const [filterTimePeriod, setFilterTimePeriod] = useState<string>("");
 
   const [selectedAttempts, setSelectedAttempts] = useState<number[]>([]);
   const [selectMode, setSelectMode] = useState(false);
@@ -82,10 +83,8 @@ export default function HistorialPage() {
     fetchHistory();
   }, []);
 
-  // Identifica los intentos originales
   const originalAttemptIds = useMemo(() => {
     const examFirstAttempt = new Map<number, number>();
-    // Ordena los intentos por fecha para encontrar el más antiguo
     const sortedAttempts = [...attempts].sort(
       (a, b) =>
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -111,8 +110,9 @@ export default function HistorialPage() {
     filterEtiqueta,
     filterDateFrom,
     filterDateTo,
-    filterRepeated, // Añadir dependencia
-    originalAttemptIds, // Añadir dependencia
+    filterRepeated,
+    filterTimePeriod,
+    originalAttemptIds,
   ]);
 
   useEffect(() => {
@@ -147,14 +147,14 @@ export default function HistorialPage() {
         .from("intentos_examen")
         .select(
           `
-            id,
-            created_at,
-            score_correct,
-            score_incorrect,
-            examen_id,
-            time_spent_seconds,
-            examenes ( topic, exam_type, difficulty, categoria_id, etiquetas, has_timer, timer_minutes )
-          `
+          id,
+          created_at,
+          score_correct,
+          score_incorrect,
+          examen_id,
+          time_spent_seconds,
+          examenes ( topic, exam_type, difficulty, categoria_id, etiquetas, has_timer, timer_minutes )
+        `
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -195,6 +195,16 @@ export default function HistorialPage() {
         a.examenes?.etiquetas?.includes(parseInt(filterEtiqueta))
       );
     }
+
+    if (filterTimePeriod) {
+      const now = new Date();
+      const daysToSubtract = parseInt(filterTimePeriod);
+      const pastDate = new Date();
+      pastDate.setDate(now.getDate() - daysToSubtract);
+
+      filtered = filtered.filter((a) => new Date(a.created_at) >= pastDate);
+    }
+
     if (filterDateFrom) {
       filtered = filtered.filter(
         (a) => new Date(a.created_at) >= new Date(filterDateFrom)
@@ -206,7 +216,6 @@ export default function HistorialPage() {
       );
     }
 
-    // Lógica del nuevo filtro
     if (filterRepeated) {
       if (filterRepeated === "repetidos") {
         filtered = filtered.filter((a) => !originalAttemptIds.has(a.id));
@@ -226,7 +235,8 @@ export default function HistorialPage() {
     setFilterEtiqueta("");
     setFilterDateFrom("");
     setFilterDateTo("");
-    setFilterRepeated(""); // Limpiar nuevo filtro
+    setFilterRepeated("");
+    setFilterTimePeriod("");
   };
 
   const hasActiveFilters = () => {
@@ -238,7 +248,8 @@ export default function HistorialPage() {
       filterEtiqueta ||
       filterDateFrom ||
       filterDateTo ||
-      filterRepeated // Añadir nuevo filtro
+      filterRepeated ||
+      filterTimePeriod
     );
   };
 
@@ -628,7 +639,6 @@ export default function HistorialPage() {
               </select>
             </div>
 
-            {/* Nuevo Filtro */}
             <div className="filter-group">
               <label>Estado</label>
               <select
@@ -638,6 +648,18 @@ export default function HistorialPage() {
                 <option value="">Todos</option>
                 <option value="no_repetidos">Originales</option>
                 <option value="repetidos">Repetidos</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Periodo</label>
+              <select
+                value={filterTimePeriod}
+                onChange={(e) => setFilterTimePeriod(e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="7">Últimos 7 días</option>
+                <option value="30">Últimos 30 días</option>
               </select>
             </div>
 
