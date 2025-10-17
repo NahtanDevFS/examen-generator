@@ -30,11 +30,11 @@ const CATEGORY_COLORS = [
 ];
 
 const CATEGORY_ICONS = [
-  "📚",
-  "💻",
-  "🔬",
-  "🗣️",
   "📜",
+  "🗣️",
+  "💻",
+  "📚",
+  "🔬",
   "🎨",
   "⚽",
   "🎵",
