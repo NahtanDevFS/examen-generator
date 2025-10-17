@@ -192,6 +192,7 @@ function LoginContent() {
       <div className="login-page-wrapper">
         <div className="login-container">
           <div className="login-form">
+            <h2>ExamFlow</h2>
             <h2>Recuperar Contraseña</h2>
             <p className="subtitle">
               Ingresa tu correo para recibir instrucciones.
@@ -228,6 +229,7 @@ function LoginContent() {
     <div className="login-page-wrapper">
       <div className="login-container">
         <div className="login-form">
+          <h2>ExamFlow</h2>
           <h2>{isSignUp ? "Crear Cuenta" : "Iniciar Sesión"}</h2>
           <button
             type="button"
