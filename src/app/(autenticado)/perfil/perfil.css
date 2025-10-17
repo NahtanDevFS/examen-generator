@@ -5,7 +5,7 @@
   grid-template-columns: 1fr;
   gap: 2rem;
   margin-top: 2rem;
-  max-width: 600px; /* Limita el ancho para mejor legibilidad */
+  max-width: 800px; /* Limita el ancho para mejor legibilidad */
 }
 
 .profile-card {

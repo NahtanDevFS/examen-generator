@@ -1,46 +1,57 @@
 /* src/app/(autenticado)/globals-autenticado.css */
+
 .layout-container {
   display: flex;
+  min-height: 100vh;
+  position: relative;
 }
 
 .main-content {
   flex-grow: 1;
   width: 100%;
-  /* Añadimos un padding interno para el contenido */
+  min-height: 100vh;
   padding: 2.5rem;
-  transition: padding-left 0.3s ease-in-out;
+  transition: margin-left 0.3s ease-in-out;
+  background-color: #f0f2f5;
 }
 
 /* El contenido dentro de la página principal */
 .main-content .page-content {
   max-width: 800px;
-  margin: 0 auto; /* Centramos el contenido, sin margen vertical */
+  margin: 0 auto;
 }
 
-/* Ajuste de padding-left basado en el estado del sidebar */
-.layout-container.sidebar-expanded .main-content {
-  padding-left: calc(260px + 2.5rem); /* Ancho del sidebar + padding */
-}
-
-.layout-container.sidebar-collapsed .main-content {
-  padding-left: calc(80px + 2.5rem); /* Ancho del sidebar colapsado + padding */
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    padding: 1.5rem; /* Menos padding en móvil */
+/* Ajuste de margin-left basado en el estado del sidebar EN PC */
+@media (min-width: 769px) {
+  .layout-container.sidebar-expanded .main-content {
+    margin-left: 260px; /* Ancho del sidebar expandido */
   }
 
-  /* En móvil, el padding-left no se ve afectado por el sidebar */
-  .layout-container.sidebar-expanded .main-content,
   .layout-container.sidebar-collapsed .main-content {
-    padding-left: 1.5rem;
+    margin-left: 80px; /* Ancho del sidebar colapsado */
+  }
+
+  /* Aseguramos que las páginas con max-width más grande también respeten el margen */
+  .estadisticas-page,
+  .historial-page-container,
+  .categorias-page {
+    max-width: 1400px !important;
+  }
+}
+
+/* En móvil, sin margin-left porque el sidebar es overlay */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1.5rem;
+    margin-left: 0 !important; /* Sin desplazamiento en móvil */
+    padding-top: 4rem; /* Espacio para el botón hamburguesa */
   }
 }
 
 .page-description {
-  font-size: 1.3rem; /* Un tamaño de fuente ligeramente más pequeño que el texto normal */
-  color: #6c757d; /* Un color gris suave para que no compita con el título */
-  line-height: 1.5; /* Mejora la legibilidad */
+  font-size: 1.3rem;
+  color: #6c757d;
+  line-height: 1.5;
   font-weight: 700;
+  margin-bottom: 2rem;
 }
