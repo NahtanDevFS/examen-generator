@@ -35,6 +35,17 @@ export default function AprenderPage() {
 
   useEffect(() => {
     const fetchAttempts = async () => {
+      // ✅ CORRECCIÓN: Obtener el usuario actual primero
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error("No hay usuario autenticado");
+        return;
+      }
+
+      // ✅ CORRECCIÓN: Filtrar por user_id
       const { data } = await supabase
         .from("intentos_examen")
         .select(
@@ -47,8 +58,10 @@ export default function AprenderPage() {
           examenes ( topic, questions )
         `
         )
+        .eq("user_id", user.id) // ✅ Filtro agregado
         .order("created_at", { ascending: false })
         .limit(20);
+
       setAttempts((data as any) || []);
     };
     fetchAttempts();
