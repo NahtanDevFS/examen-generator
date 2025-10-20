@@ -1,3 +1,4 @@
+// src/app/(autenticado)/historial/page.tsx
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -16,12 +17,14 @@ import {
   FiTrash2,
   FiClock,
   FiSearch,
+  FiEdit2,
 } from "react-icons/fi";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import EditExamModal from "@/components/EditExamModal";
 import "./historial.css";
 
 type Attempt = {
@@ -78,6 +81,14 @@ export default function HistorialPage() {
   const [selectedAttempts, setSelectedAttempts] = useState<number[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
+
+  // Estados para el modal de edición
+  const [editingExamId, setEditingExamId] = useState<number | null>(null);
+  const [editingExamData, setEditingExamData] = useState<{
+    topic: string;
+    categoriaId: number | null;
+    etiquetas: number[];
+  } | null>(null);
 
   useEffect(() => {
     fetchHistory();
@@ -282,6 +293,22 @@ export default function HistorialPage() {
     e.preventDefault();
     e.stopPropagation();
     router.push(`/?examId=${examId}`);
+  };
+
+  const handleEditExam = (e: React.MouseEvent, attempt: Attempt) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingExamId(attempt.examen_id);
+    setEditingExamData({
+      topic: attempt.examenes?.topic || "",
+      categoriaId: attempt.examenes?.categoria_id || null,
+      etiquetas: attempt.examenes?.etiquetas || [],
+    });
+  };
+
+  const handleEditSuccess = () => {
+    setSuccessMessage("Examen actualizado correctamente");
+    fetchHistory();
   };
 
   const toggleSelectAttempt = (attemptId: number) => {
@@ -872,6 +899,13 @@ export default function HistorialPage() {
                 </Link>
                 <div className="item-actions-bar">
                   <button
+                    className="edit-button"
+                    onClick={(e) => handleEditExam(e, attempt)}
+                    title="Editar examen"
+                  >
+                    <FiEdit2 /> Editar
+                  </button>
+                  <button
                     className="repeat-button"
                     onClick={(e) => handleRepeatExam(e, attempt.examen_id)}
                   >
@@ -902,6 +936,21 @@ export default function HistorialPage() {
             <FiDownload /> Exportar Todo a Excel
           </button>
         </div>
+      )}
+
+      {/* Modal de Edición */}
+      {editingExamId && editingExamData && (
+        <EditExamModal
+          examId={editingExamId}
+          currentTopic={editingExamData.topic}
+          currentCategoriaId={editingExamData.categoriaId}
+          currentEtiquetas={editingExamData.etiquetas}
+          onClose={() => {
+            setEditingExamId(null);
+            setEditingExamData(null);
+          }}
+          onSuccess={handleEditSuccess}
+        />
       )}
     </div>
   );

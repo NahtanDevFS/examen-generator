@@ -12,6 +12,7 @@ import {
   FiCheckCircle,
   FiDownload,
   FiStar,
+  FiCalendar,
 } from "react-icons/fi";
 import {
   LineChart,
@@ -28,7 +29,14 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { format, subDays, startOfDay } from "date-fns";
+import {
+  format,
+  subDays,
+  startOfDay,
+  startOfWeek,
+  startOfMonth,
+  startOfYear,
+} from "date-fns";
 import { es } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -71,6 +79,8 @@ type TypeStats = {
   count: number;
 };
 
+type GroupBy = "day" | "week" | "month" | "year";
+
 export default function EstadisticasPage() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
@@ -90,13 +100,19 @@ export default function EstadisticasPage() {
   const [topicStats, setTopicStats] = useState<TopicStats[]>([]);
   const [difficultyStats, setDifficultyStats] = useState<DifficultyStats[]>([]);
   const [typeStats, setTypeStats] = useState<TypeStats[]>([]);
-  const [timeRange, setTimeRange] = useState<"7" | "14" | "30" | "90" | "all">(
-    "30"
-  );
+  const [timeRange, setTimeRange] = useState<
+    "7" | "14" | "30" | "90" | "all" | "custom"
+  >("30");
+  const [groupBy, setGroupBy] = useState<GroupBy>("day");
+
+  // Estados para periodo personalizado
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [showCustomDateInputs, setShowCustomDateInputs] = useState(false);
 
   useEffect(() => {
     fetchStatistics();
-  }, [timeRange]);
+  }, [timeRange, customStartDate, customEndDate, groupBy]);
 
   const fetchStatistics = async () => {
     setLoading(true);
@@ -107,7 +123,12 @@ export default function EstadisticasPage() {
 
     // Calcular fecha de inicio según el rango
     let startDate = new Date(0);
-    if (timeRange === "7") {
+
+    if (timeRange === "custom") {
+      if (customStartDate) {
+        startDate = new Date(customStartDate);
+      }
+    } else if (timeRange === "7") {
       startDate = subDays(new Date(), 7);
     } else if (timeRange === "14") {
       startDate = subDays(new Date(), 14);
@@ -124,8 +145,8 @@ export default function EstadisticasPage() {
       .eq("user_id", user.id)
       .not("desbloqueado_en", "is", null);
 
-    // Obtener todos los intentos con información del examen
-    const { data: attempts } = await supabase
+    // Construir query base
+    let query = supabase
       .from("intentos_examen")
       .select(
         `
@@ -143,8 +164,27 @@ export default function EstadisticasPage() {
       `
       )
       .eq("user_id", user.id)
-      .gte("created_at", startDate.toISOString())
       .order("created_at", { ascending: true });
+
+    // Aplicar filtros de fecha
+    if (timeRange === "custom") {
+      if (customStartDate) {
+        query = query.gte(
+          "created_at",
+          new Date(customStartDate).toISOString()
+        );
+      }
+      if (customEndDate) {
+        query = query.lte(
+          "created_at",
+          new Date(customEndDate + "T23:59:59").toISOString()
+        );
+      }
+    } else if (timeRange !== "all") {
+      query = query.gte("created_at", startDate.toISOString());
+    }
+
+    const { data: attempts } = await query;
 
     if (!attempts) {
       setLoading(false);
@@ -224,31 +264,37 @@ export default function EstadisticasPage() {
       completedAchievements: achievementsCount || 0,
     });
 
-    // Datos para gráfico de progreso temporal
+    // Datos para gráfico de progreso temporal con agrupación
     const progressMap = new Map<string, { score: number; count: number }>();
     attempts.forEach((a) => {
-      const date = format(new Date(a.created_at), "dd/MM", { locale: es });
+      const dateKey = getDateKey(new Date(a.created_at), groupBy);
       const total = (a.score_correct || 0) + (a.score_incorrect || 0);
       const score = total > 0 ? ((a.score_correct || 0) / total) * 100 : 0;
 
-      if (progressMap.has(date)) {
-        const existing = progressMap.get(date)!;
-        progressMap.set(date, {
+      if (progressMap.has(dateKey)) {
+        const existing = progressMap.get(dateKey)!;
+        progressMap.set(dateKey, {
           score: existing.score + score,
           count: existing.count + 1,
         });
       } else {
-        progressMap.set(date, { score, count: 1 });
+        progressMap.set(dateKey, { score, count: 1 });
       }
     });
 
-    const progressArray: ChartData[] = Array.from(progressMap.entries()).map(
-      ([date, data]) => ({
+    const progressArray: ChartData[] = Array.from(progressMap.entries())
+      .map(([date, data]) => ({
         date,
         score: Math.round(data.score / data.count),
         exams: data.count,
-      })
-    );
+      }))
+      .sort((a, b) => {
+        // Ordenar por fecha
+        const dateA = parseDateKey(a.date, groupBy);
+        const dateB = parseDateKey(b.date, groupBy);
+        return dateA.getTime() - dateB.getTime();
+      });
+
     setProgressData(progressArray);
 
     // Estadísticas por tema
@@ -332,10 +378,48 @@ export default function EstadisticasPage() {
     setLoading(false);
   };
 
+  // Función para obtener la clave de fecha según el agrupamiento
+  const getDateKey = (date: Date, grouping: GroupBy): string => {
+    switch (grouping) {
+      case "day":
+        return format(date, "dd/MM/yyyy", { locale: es });
+      case "week":
+        const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+        return format(weekStart, "'Semana del' dd/MM/yyyy", { locale: es });
+      case "month":
+        return format(date, "MMMM yyyy", { locale: es });
+      case "year":
+        return format(date, "yyyy");
+      default:
+        return format(date, "dd/MM/yyyy", { locale: es });
+    }
+  };
+
+  // Función para parsear la clave de fecha de vuelta a Date (para ordenar)
+  const parseDateKey = (dateKey: string, grouping: GroupBy): Date => {
+    switch (grouping) {
+      case "day":
+        const [day, month, year] = dateKey.split("/");
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      case "week":
+        const weekMatch = dateKey.match(/\d{2}\/\d{2}\/\d{4}/);
+        if (weekMatch) {
+          const [d, m, y] = weekMatch[0].split("/");
+          return new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        }
+        return new Date();
+      case "month":
+        return new Date(dateKey);
+      case "year":
+        return new Date(parseInt(dateKey), 0, 1);
+      default:
+        return new Date();
+    }
+  };
+
   const calculateStreak = (attempts: any[]): number => {
     if (attempts.length === 0) return 0;
 
-    // Obtenemos todas las fechas únicas (sin hora) de los intentos
     const dates = attempts.map((a) =>
       startOfDay(new Date(a.created_at)).getTime()
     );
@@ -346,15 +430,10 @@ export default function EstadisticasPage() {
     const yesterday = today - 24 * 60 * 60 * 1000;
     const oneDayMs = 24 * 60 * 60 * 1000;
 
-    // Verificamos si el usuario completó al menos un examen ayer
     const hasYesterday = uniqueDates.includes(yesterday);
-    // Verificamos si el usuario ya completó al menos un examen hoy
     const hasToday = uniqueDates.includes(today);
 
-    // Si el usuario completó ayer, la racha continúa (independientemente de si ya cumplió hoy)
-    // Si el usuario NO completó ayer, la racha se resetea a 0 (a menos que haya completado hoy)
     if (hasYesterday || hasToday) {
-      // Calculamos la racha desde hoy o ayer (lo que esté más reciente)
       const startPoint = hasToday ? today : yesterday;
 
       for (let i = 0; i < uniqueDates.length; i++) {
@@ -366,11 +445,23 @@ export default function EstadisticasPage() {
         }
       }
     } else {
-      // Si no completó ni ayer ni hoy, la racha es 0
       streak = 0;
     }
 
     return streak;
+  };
+
+  const handleTimeRangeChange = (
+    range: "7" | "14" | "30" | "90" | "all" | "custom"
+  ) => {
+    setTimeRange(range);
+    if (range === "custom") {
+      setShowCustomDateInputs(true);
+    } else {
+      setShowCustomDateInputs(false);
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
   };
 
   const exportToPDF = () => {
@@ -485,8 +576,36 @@ export default function EstadisticasPage() {
         return "Últimos 90 días";
       case "all":
         return "Todo el tiempo";
+      case "custom":
+        if (customStartDate && customEndDate) {
+          return `${new Date(
+            customStartDate
+          ).toLocaleDateString()} - ${new Date(
+            customEndDate
+          ).toLocaleDateString()}`;
+        } else if (customStartDate) {
+          return `Desde ${new Date(customStartDate).toLocaleDateString()}`;
+        } else if (customEndDate) {
+          return `Hasta ${new Date(customEndDate).toLocaleDateString()}`;
+        }
+        return "Periodo personalizado";
       default:
         return "Desconocido";
+    }
+  };
+
+  const getGroupByLabel = (group: GroupBy): string => {
+    switch (group) {
+      case "day":
+        return "Día";
+      case "week":
+        return "Semana";
+      case "month":
+        return "Mes";
+      case "year":
+        return "Año";
+      default:
+        return "Día";
     }
   };
 
@@ -512,35 +631,65 @@ export default function EstadisticasPage() {
           <div className="time-range-selector">
             <button
               className={timeRange === "7" ? "active" : ""}
-              onClick={() => setTimeRange("7")}
+              onClick={() => handleTimeRangeChange("7")}
             >
               7 días
             </button>
             <button
               className={timeRange === "14" ? "active" : ""}
-              onClick={() => setTimeRange("14")}
+              onClick={() => handleTimeRangeChange("14")}
             >
               14 días
             </button>
             <button
               className={timeRange === "30" ? "active" : ""}
-              onClick={() => setTimeRange("30")}
+              onClick={() => handleTimeRangeChange("30")}
             >
               30 días
             </button>
             <button
               className={timeRange === "90" ? "active" : ""}
-              onClick={() => setTimeRange("90")}
+              onClick={() => handleTimeRangeChange("90")}
             >
               90 días
             </button>
             <button
               className={timeRange === "all" ? "active" : ""}
-              onClick={() => setTimeRange("all")}
+              onClick={() => handleTimeRangeChange("all")}
             >
               Todo
             </button>
+            <button
+              className={timeRange === "custom" ? "active" : ""}
+              onClick={() => handleTimeRangeChange("custom")}
+            >
+              <FiCalendar /> Personalizado
+            </button>
           </div>
+
+          {showCustomDateInputs && (
+            <div className="custom-date-inputs">
+              <div className="date-input-group">
+                <label>Desde:</label>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  max={customEndDate || undefined}
+                />
+              </div>
+              <div className="date-input-group">
+                <label>Hasta:</label>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  min={customStartDate || undefined}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="export-buttons">
             <button className="btn-export-pdf" onClick={exportToPDF}>
@@ -630,9 +779,24 @@ export default function EstadisticasPage() {
 
       {/* Gráficos */}
       <div className="charts-container">
-        {/* Gráfico de Progreso */}
-        <div className="chart-card">
-          <h3>📈 Progreso en el Tiempo</h3>
+        {/* Gráfico de Progreso con Selector de Agrupación */}
+        <div className="chart-card chart-card-full">
+          <div className="chart-header">
+            <h3>📈 Progreso en el Tiempo</h3>
+            <div className="group-by-selector">
+              <label>Agrupar por:</label>
+              <select
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+                className="group-by-select"
+              >
+                <option value="day">Día</option>
+                <option value="week">Semana</option>
+                <option value="month">Mes</option>
+                <option value="year">Año</option>
+              </select>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={progressData}>
               <CartesianGrid strokeDasharray="3 3" />

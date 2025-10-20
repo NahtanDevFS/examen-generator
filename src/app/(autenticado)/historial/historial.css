@@ -619,6 +619,40 @@
   color: #7b1fa2;
 }
 
+/* Botón de editar */
+.edit-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #138496;
+}
+
+/* Ajustes responsivos para los botones de acción */
+@media (max-width: 768px) {
+  .item-actions-bar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .edit-button,
+  .repeat-button,
+  .delete-single-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .historial-header {

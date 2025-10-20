@@ -6,10 +6,8 @@
 
 .stats-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
   gap: 1.5rem;
 }
 
@@ -19,9 +17,8 @@
 
 .stats-controls {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .time-range-selector {
@@ -30,6 +27,7 @@
   background-color: #f0f2f5;
   padding: 0.25rem;
   border-radius: 8px;
+  flex-wrap: wrap;
 }
 
 .time-range-selector button {
@@ -42,6 +40,9 @@
   transition: all 0.2s;
   color: #666;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .time-range-selector button.active {
@@ -51,6 +52,57 @@
 
 .time-range-selector button:hover:not(.active) {
   background-color: #e0e0e0;
+}
+
+/* INPUTS DE FECHA PERSONALIZADA */
+.custom-date-inputs {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.date-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.date-input-group label {
+  font-weight: 500;
+  color: #333;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.date-input-group input[type="date"] {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.date-input-group input[type="date"]:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 /* BOTONES DE EXPORTACIÓN */
@@ -97,7 +149,6 @@
 
 .stats-grid {
   display: grid;
-  /* ✅ AJUSTE: Cambiado minmax para un mejor ajuste con 7 elementos */
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
@@ -161,11 +212,58 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+/* Gráfico de progreso ocupa ancho completo */
+.chart-card-full {
+  grid-column: 1 / -1;
+}
+
 .chart-card h3 {
   margin-top: 0;
   margin-bottom: 1.5rem;
   color: #1a2b4d;
   font-size: 1.2rem;
+}
+
+/* HEADER DEL GRÁFICO CON SELECTOR */
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.chart-header h3 {
+  margin: 0;
+}
+
+.group-by-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.group-by-selector label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.group-by-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.group-by-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 .info-cards {
@@ -198,13 +296,11 @@
 /* Responsive */
 @media (max-width: 1024px) {
   .stats-header {
-    flex-direction: column;
     align-items: flex-start;
   }
 
   .stats-controls {
     width: 100%;
-    flex-direction: column;
   }
 
   .time-range-selector {
@@ -224,30 +320,48 @@
   .btn-export-excel {
     flex: 1;
   }
+
+  .custom-date-inputs {
+    flex-direction: column;
+  }
+
+  .date-input-group {
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
   .stats-header {
-    flex-direction: column;
-    align-items: flex-start;
+    gap: 1rem;
   }
 
   .stats-controls {
-    width: 100%;
+    gap: 0.75rem;
   }
 
   .time-range-selector {
-    width: 100%;
+    padding: 0.2rem;
   }
 
   .time-range-selector button {
-    flex: 1;
     font-size: 0.85rem;
     padding: 0.4rem 0.75rem;
   }
 
+  .custom-date-inputs {
+    padding: 0.75rem;
+  }
+
+  .date-input-group label {
+    font-size: 0.85rem;
+  }
+
+  .date-input-group input[type="date"] {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+  }
+
   .export-buttons {
-    width: 100%;
     gap: 0.5rem;
   }
 
@@ -270,6 +384,19 @@
     padding: 1rem;
   }
 
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .group-by-selector {
+    width: 100%;
+  }
+
+  .group-by-select {
+    flex: 1;
+  }
+
   .stat-value {
     font-size: 1.5rem;
   }
@@ -277,7 +404,6 @@
 
 @media (max-width: 600px) {
   .time-range-selector {
-    width: 100%;
     flex-wrap: wrap;
   }
 
@@ -288,13 +414,16 @@
   }
 
   .export-buttons {
-    width: 100%;
     flex-direction: column;
   }
 
   .btn-export-pdf,
   .btn-export-excel {
     width: 100%;
+  }
+
+  .custom-date-inputs {
+    gap: 0.5rem;
   }
 
   .stats-grid {
