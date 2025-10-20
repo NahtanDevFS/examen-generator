@@ -1,3 +1,4 @@
+// src/app/(autenticado)/estadisticas/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,7 +11,7 @@ import {
   FiBarChart2,
   FiCheckCircle,
   FiDownload,
-  FiStar, // ✅ Icono para logros
+  FiStar,
 } from "react-icons/fi";
 import {
   LineChart,
@@ -44,7 +45,7 @@ type StatsData = {
   streak: number;
   favoriteType: string;
   favoriteDifficulty: string;
-  completedAchievements: number; // ✅ Nuevo estado para logros
+  completedAchievements: number;
 };
 
 type ChartData = {
@@ -83,7 +84,7 @@ export default function EstadisticasPage() {
     streak: 0,
     favoriteType: "N/A",
     favoriteDifficulty: "N/A",
-    completedAchievements: 0, // ✅ Inicializar estado
+    completedAchievements: 0,
   });
   const [progressData, setProgressData] = useState<ChartData[]>([]);
   const [topicStats, setTopicStats] = useState<TopicStats[]>([]);
@@ -105,7 +106,7 @@ export default function EstadisticasPage() {
     if (!user) return;
 
     // Calcular fecha de inicio según el rango
-    let startDate = new Date(0); // Desde el inicio
+    let startDate = new Date(0);
     if (timeRange === "7") {
       startDate = subDays(new Date(), 7);
     } else if (timeRange === "14") {
@@ -116,7 +117,7 @@ export default function EstadisticasPage() {
       startDate = subDays(new Date(), 90);
     }
 
-    // ✅ OBTENER LOGROS COMPLETADOS
+    // Obtener logros completados
     const { count: achievementsCount } = await supabase
       .from("progreso_logros_usuario")
       .select("*", { count: "exact", head: true })
@@ -220,7 +221,7 @@ export default function EstadisticasPage() {
       favoriteDifficulty:
         favoriteDifficulty.charAt(0).toUpperCase() +
         favoriteDifficulty.slice(1),
-      completedAchievements: achievementsCount || 0, // ✅ Actualizar estado
+      completedAchievements: achievementsCount || 0,
     });
 
     // Datos para gráfico de progreso temporal
@@ -334,6 +335,7 @@ export default function EstadisticasPage() {
   const calculateStreak = (attempts: any[]): number => {
     if (attempts.length === 0) return 0;
 
+    // Obtenemos todas las fechas únicas (sin hora) de los intentos
     const dates = attempts.map((a) =>
       startOfDay(new Date(a.created_at)).getTime()
     );
@@ -341,15 +343,31 @@ export default function EstadisticasPage() {
 
     let streak = 0;
     const today = startOfDay(new Date()).getTime();
+    const yesterday = today - 24 * 60 * 60 * 1000;
     const oneDayMs = 24 * 60 * 60 * 1000;
 
-    for (let i = 0; i < uniqueDates.length; i++) {
-      const expectedDate = today - i * oneDayMs;
-      if (uniqueDates[i] === expectedDate) {
-        streak++;
-      } else {
-        break;
+    // Verificamos si el usuario completó al menos un examen ayer
+    const hasYesterday = uniqueDates.includes(yesterday);
+    // Verificamos si el usuario ya completó al menos un examen hoy
+    const hasToday = uniqueDates.includes(today);
+
+    // Si el usuario completó ayer, la racha continúa (independientemente de si ya cumplió hoy)
+    // Si el usuario NO completó ayer, la racha se resetea a 0 (a menos que haya completado hoy)
+    if (hasYesterday || hasToday) {
+      // Calculamos la racha desde hoy o ayer (lo que esté más reciente)
+      const startPoint = hasToday ? today : yesterday;
+
+      for (let i = 0; i < uniqueDates.length; i++) {
+        const expectedDate = startPoint - i * oneDayMs;
+        if (uniqueDates[i] === expectedDate) {
+          streak++;
+        } else {
+          break;
+        }
       }
+    } else {
+      // Si no completó ni ayer ni hoy, la racha es 0
+      streak = 0;
     }
 
     return streak;
@@ -371,7 +389,6 @@ export default function EstadisticasPage() {
 
     let yPosition = 45;
 
-    // Resumen de estadísticas
     doc.setFontSize(13);
     doc.text("Resumen General", 14, yPosition);
     yPosition += 10;
@@ -600,7 +617,6 @@ export default function EstadisticasPage() {
           </div>
         </div>
 
-        {/* ✅ NUEVA TARJETA DE LOGROS */}
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: "#fffde7" }}>
             <FiStar size={28} color="#fbc02d" />
