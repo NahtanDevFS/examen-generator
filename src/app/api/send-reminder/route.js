@@ -17,16 +17,12 @@ export async function POST(request) {
   const streakMessage =
     streakDays === 0
       ? "¡Empieza tu racha hoy! Completa un examen y comienza tu progreso."
-      : `¡Increíble! Llevas <strong>${streakDays} ${
-          streakDays === 1 ? "día" : "días"
-        }</strong> de racha. No dejes que se rompa.`;
+      : `¡No dejes que se rompa tu racha!`;
 
   const emailSubject =
     streakDays === 0
       ? "¡Empieza tu racha en ExamFlow! 📚"
-      : `¡Mantén tu racha de ${streakDays} ${
-          streakDays === 1 ? "día" : "días"
-        }! 🔥`;
+      : `¡Mantén tu racha en ExamFlow! 🔥`;
 
   try {
     await transporter.sendMail({
