@@ -29,20 +29,7 @@ const CATEGORY_COLORS = [
   "#8BC34A",
 ];
 
-const CATEGORY_ICONS = [
-  "📜",
-  "🗣️",
-  "💻",
-  "📚",
-  "🔬",
-  "🎨",
-  "⚽",
-  "🎵",
-  "🍳",
-  "✈️",
-  "🏀",
-  "🎮",
-];
+const CATEGORY_ICONS = [""];
 
 const TAG_COLORS = [
   "#6c757d",
