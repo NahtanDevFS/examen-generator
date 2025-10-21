@@ -77,12 +77,12 @@ export default function HistorialPage() {
   const [filterDateTo, setFilterDateTo] = useState<string>("");
   const [filterRepeated, setFilterRepeated] = useState<string>("");
   const [filterTimePeriod, setFilterTimePeriod] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const [selectedAttempts, setSelectedAttempts] = useState<number[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
 
-  // Estados para el modal de edición
   const [editingExamId, setEditingExamId] = useState<number | null>(null);
   const [editingExamData, setEditingExamData] = useState<{
     topic: string;
@@ -124,6 +124,7 @@ export default function HistorialPage() {
     filterRepeated,
     filterTimePeriod,
     originalAttemptIds,
+    sortOrder,
   ]);
 
   useEffect(() => {
@@ -235,6 +236,12 @@ export default function HistorialPage() {
       }
     }
 
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+    });
+
     setFilteredAttempts(filtered);
   };
 
@@ -248,6 +255,7 @@ export default function HistorialPage() {
     setFilterDateTo("");
     setFilterRepeated("");
     setFilterTimePeriod("");
+    setSortOrder("desc");
   };
 
   const hasActiveFilters = () => {
@@ -260,7 +268,8 @@ export default function HistorialPage() {
       filterDateFrom ||
       filterDateTo ||
       filterRepeated ||
-      filterTimePeriod
+      filterTimePeriod ||
+      sortOrder !== "desc"
     );
   };
 
@@ -707,6 +716,17 @@ export default function HistorialPage() {
                 onChange={(e) => setFilterDateTo(e.target.value)}
               />
             </div>
+
+            <div className="filter-group">
+              <label>Ordenar por Fecha</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
+              >
+                <option value="desc">Más reciente primero</option>
+                <option value="asc">Más antiguo primero</option>
+              </select>
+            </div>
           </div>
 
           {hasActiveFilters() && (
@@ -938,7 +958,6 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* Modal de Edición */}
       {editingExamId && editingExamData && (
         <EditExamModal
           examId={editingExamId}

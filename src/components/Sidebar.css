@@ -11,7 +11,7 @@
   flex-direction: column;
   overflow-y: auto;
   padding: 1rem;
-  transition: width 0.3s ease, transform 0.3s ease; /* Transición para móvil también */
+  transition: width 0.3s ease, transform 0.3s ease;
   z-index: 1001;
   border-right: 1px solid #374151;
 }
@@ -23,7 +23,7 @@
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   height: 60px;
   margin-bottom: 1.5rem;
   font-size: 1.8rem;
@@ -123,7 +123,7 @@
 /* --- ESTILOS RESPONSIVE PARA MÓVIL --- */
 .hamburger-btn,
 .mobile-close-btn {
-  display: none; /* Ocultos en PC */
+  display: none;
   background: none;
   border: none;
   cursor: pointer;
@@ -141,21 +141,6 @@
   z-index: 1000;
 }
 
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  /* Justifica el contenido principal (logo y nombre) a un lado y el botón de cerrar al otro */
-  justify-content: space-between;
-  height: 60px;
-  margin-bottom: 1.5rem;
-  font-size: 1.8rem;
-  font-weight: bold;
-  white-space: nowrap;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-/* Contenedor para el logo y el nombre de usuario para que estén juntos */
 .sidebar-header > div {
   display: flex;
   flex-direction: column;
@@ -164,15 +149,15 @@
 
 .sidebar-username {
   font-size: 1.2rem;
-  color: #d1d5db; /* Color de texto claro */
+  color: #d1d5db;
   margin: 0;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Añade puntos suspensivos si el nombre es muy largo */
+  text-overflow: ellipsis;
 }
 
-/* --- Nueva Sección de Perfil de Usuario --- */
+/* --- Sección de Perfil de Usuario --- */
 .sidebar-user-profile {
   display: flex;
   align-items: center;
@@ -181,7 +166,7 @@
   margin-bottom: 1rem;
   border-top: 1px solid #374151;
   border-bottom: 1px solid #374151;
-  background-color: rgba(255, 255, 255, 0.05); /* Un fondo sutil */
+  background-color: rgba(255, 255, 255, 0.05);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -194,11 +179,12 @@
 .sidebar-user-profile .user-info {
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
 }
 
 .sidebar-user-profile .user-info span {
   font-size: 0.8rem;
-  color: #a0aec0; /* Un gris más claro */
+  color: #a0aec0;
 }
 
 .sidebar-user-profile .user-info strong {
@@ -207,8 +193,48 @@
   font-weight: 600;
 }
 
+/* --- ESTILOS PARA LA RACHA --- */
+.sidebar-user-profile .user-info .user-streak {
+  font-size: 0.75rem;
+  color: #ffc107;
+  font-weight: 600;
+  background-color: rgba(255, 193, 7, 0.15);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  animation: streakPulse 2s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+/* Racha inactiva (no cumplida hoy) */
+.sidebar-user-profile .user-info .user-streak.inactive {
+  color: #6c757d;
+  background-color: rgba(108, 117, 125, 0.15);
+  border: 1px solid rgba(108, 117, 125, 0.3);
+  animation: none;
+  opacity: 0.7;
+}
+
+@keyframes streakPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.sidebar.collapsed .sidebar-user-profile .user-info {
+  display: none;
+}
+
 .sidebar-nav a {
-  position: relative; /* Necesario para posicionar la insignia */
+  position: relative;
 }
 
 .notification-badge {
@@ -234,24 +260,21 @@
 
 @media (max-width: 768px) {
   .main-content {
-    padding: 1.5rem; /* Menos padding en móvil */
+    padding: 1.5rem;
   }
-  /* Oculta el sidebar fuera de la pantalla por defecto */
+
   .sidebar {
     transform: translateX(-100%);
   }
 
-  /* Muestra el sidebar cuando tiene la clase 'mobile-open' */
   .sidebar.mobile-open {
     transform: translateX(0);
   }
 
-  /* Muestra el overlay cuando el sidebar está abierto */
   .sidebar.mobile-open + .overlay {
     display: block;
   }
 
-  /* Oculta el botón de colapsar de PC y muestra el de hamburguesa */
   .sidebar-toggle {
     display: none;
   }
@@ -261,24 +284,21 @@
     position: fixed;
     top: 15px;
     left: 15px;
-    color: #111827; /* Color oscuro para que se vea sobre fondo claro */
+    color: #111827;
   }
 
-  /* Muestra el botón de cerrar dentro del sidebar en móvil */
   .mobile-close-btn {
     display: block;
     color: #e5e7eb;
     margin-left: auto;
   }
 
-  /* Ajusta el header para el botón de cerrar */
   .sidebar-header {
     justify-content: space-between;
   }
 
-  /* En móvil, el padding-left no se ve afectado por el sidebar */
   .layout-container.sidebar-expanded .main-content,
   .layout-container.sidebar-collapsed .main-content {
-    padding-left: 4rem; /* O un valor como 4rem para crear espacio */
+    padding-left: 4rem;
   }
 }

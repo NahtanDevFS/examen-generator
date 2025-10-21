@@ -55,11 +55,9 @@ export default function AprenderPage() {
   const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Estados para categorías y etiquetas
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
 
-  // Estados para búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filterDifficulty, setFilterDifficulty] = useState<string>("");
@@ -68,6 +66,7 @@ export default function AprenderPage() {
   const [filterEtiqueta, setFilterEtiqueta] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
   const [filterDateTo, setFilterDateTo] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   useEffect(() => {
     fetchAttempts();
@@ -84,6 +83,7 @@ export default function AprenderPage() {
     filterEtiqueta,
     filterDateFrom,
     filterDateTo,
+    sortOrder,
   ]);
 
   const fetchAttempts = async () => {
@@ -96,7 +96,6 @@ export default function AprenderPage() {
       return;
     }
 
-    // Obtener categorías y etiquetas
     const { data: cats } = await supabase
       .from("categorias")
       .select("*")
@@ -112,7 +111,6 @@ export default function AprenderPage() {
     setCategorias(cats || []);
     setEtiquetas(tags || []);
 
-    // Obtener intentos con información completa del examen
     const { data } = await supabase
       .from("intentos_examen")
       .select(
@@ -142,7 +140,6 @@ export default function AprenderPage() {
   const applyFilters = () => {
     let filtered = [...attempts];
 
-    // Filtro de búsqueda
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter((attempt) =>
@@ -150,21 +147,18 @@ export default function AprenderPage() {
       );
     }
 
-    // Filtro de dificultad
     if (filterDifficulty) {
       filtered = filtered.filter(
         (attempt) => attempt.examenes?.difficulty === filterDifficulty
       );
     }
 
-    // Filtro de tipo
     if (filterType) {
       filtered = filtered.filter(
         (attempt) => attempt.examenes?.exam_type === filterType
       );
     }
 
-    // Filtro de categoría
     if (filterCategoria) {
       filtered = filtered.filter(
         (attempt) =>
@@ -172,27 +166,30 @@ export default function AprenderPage() {
       );
     }
 
-    // Filtro de etiqueta
     if (filterEtiqueta) {
       filtered = filtered.filter((attempt) =>
         attempt.examenes?.etiquetas?.includes(parseInt(filterEtiqueta))
       );
     }
 
-    // Filtro de fecha desde
     if (filterDateFrom) {
       filtered = filtered.filter(
         (attempt) => new Date(attempt.created_at) >= new Date(filterDateFrom)
       );
     }
 
-    // Filtro de fecha hasta
     if (filterDateTo) {
       filtered = filtered.filter(
         (attempt) =>
           new Date(attempt.created_at) <= new Date(filterDateTo + "T23:59:59")
       );
     }
+
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+    });
 
     setFilteredAttempts(filtered);
   };
@@ -205,6 +202,7 @@ export default function AprenderPage() {
     setFilterEtiqueta("");
     setFilterDateFrom("");
     setFilterDateTo("");
+    setSortOrder("desc");
   };
 
   const hasActiveFilters = () => {
@@ -215,7 +213,8 @@ export default function AprenderPage() {
       filterCategoria ||
       filterEtiqueta ||
       filterDateFrom ||
-      filterDateTo
+      filterDateTo ||
+      sortOrder !== "desc"
     );
   };
 
@@ -320,7 +319,6 @@ export default function AprenderPage() {
         artificial para obtener un análisis detallado y recomendaciones.
       </p>
 
-      {/* Barra de búsqueda */}
       <div className="search-bar-container">
         <div className="search-bar-wrapper">
           <FiSearch className="search-icon" />
@@ -343,7 +341,6 @@ export default function AprenderPage() {
         </div>
       </div>
 
-      {/* Botón de filtros */}
       <div className="filters-control">
         <button
           className={`btn-filters ${showFilters ? "active" : ""}`}
@@ -360,7 +357,6 @@ export default function AprenderPage() {
         )}
       </div>
 
-      {/* Panel de filtros */}
       {showFilters && (
         <div className="filters-panel">
           <div className="filters-grid">
@@ -440,6 +436,17 @@ export default function AprenderPage() {
                 max={new Date().toISOString().split("T")[0]}
               />
             </div>
+
+            <div className="filter-group">
+              <label>Ordenar por Fecha</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
+              >
+                <option value="desc">Más reciente primero</option>
+                <option value="asc">Más antiguo primero</option>
+              </select>
+            </div>
           </div>
 
           {hasActiveFilters() && (
@@ -450,7 +457,6 @@ export default function AprenderPage() {
         </div>
       )}
 
-      {/* Selector de examen mejorado */}
       <div className="selector-container">
         <div
           className="custom-dropdown"

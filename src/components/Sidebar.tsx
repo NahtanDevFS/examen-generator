@@ -1,9 +1,11 @@
+// src/components/Sidebar.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { startOfDay } from "date-fns";
 import "./Sidebar.css";
 import {
   FiHome,
@@ -33,16 +35,19 @@ export default function Sidebar({
 }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
+  const [streak, setStreak] = useState(0);
+  const [streakActiveToday, setStreakActiveToday] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchUsername = async () => {
+    const fetchUserData = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        // Obtener nombre de usuario
         const { data: userData } = await supabase
           .from("usuario")
           .select("nombre_usuario")
@@ -51,9 +56,48 @@ export default function Sidebar({
         if (userData) {
           setUsername(userData.nombre_usuario);
         }
+
+        // Calcular racha
+        const { data: attemptsData } = await supabase
+          .from("intentos_examen")
+          .select("created_at")
+          .eq("user_id", user.id);
+
+        if (attemptsData && attemptsData.length > 0) {
+          const dates = attemptsData.map((a) =>
+            startOfDay(new Date(a.created_at)).getTime()
+          );
+          const uniqueDates = Array.from(new Set(dates)).sort((a, b) => b - a);
+
+          let currentStreak = 0;
+          const today = startOfDay(new Date()).getTime();
+          const yesterday = today - 24 * 60 * 60 * 1000;
+          const oneDayMs = 24 * 60 * 60 * 1000;
+
+          const hasYesterday = uniqueDates.includes(yesterday);
+          const hasToday = uniqueDates.includes(today);
+
+          // Verificar si la racha está activa hoy
+          setStreakActiveToday(hasToday);
+
+          if (hasYesterday || hasToday) {
+            const startPoint = hasToday ? today : yesterday;
+
+            for (let i = 0; i < uniqueDates.length; i++) {
+              const expectedDate = startPoint - i * oneDayMs;
+              if (uniqueDates[i] === expectedDate) {
+                currentStreak++;
+              } else {
+                break;
+              }
+            }
+          }
+
+          setStreak(currentStreak);
+        }
       }
     };
-    fetchUsername();
+    fetchUserData();
   }, [supabase]);
 
   const handleSignOut = async () => {
@@ -91,6 +135,15 @@ export default function Sidebar({
             <div className="user-info">
               <span>Bienvenido,</span>
               <strong>{username || "Usuario"}</strong>
+              {streak > 0 && (
+                <span
+                  className={`user-streak ${
+                    !streakActiveToday ? "inactive" : ""
+                  }`}
+                >
+                  🔥 {streak} {streak === 1 ? "día" : "días"}
+                </span>
+              )}
             </div>
           )}
         </div>

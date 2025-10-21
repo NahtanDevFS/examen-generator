@@ -117,21 +117,19 @@ export default function EstadisticasPage() {
   >("30");
   const [groupBy, setGroupBy] = useState<GroupBy>("day");
 
-  // Estados para periodo personalizado
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [showCustomDateInputs, setShowCustomDateInputs] = useState(false);
 
-  // Estados para categorías y etiquetas
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
 
-  // Estados para filtros adicionales
   const [showFilters, setShowFilters] = useState(false);
   const [filterType, setFilterType] = useState<string>("");
   const [filterDifficulty, setFilterDifficulty] = useState<string>("");
   const [filterCategoria, setFilterCategoria] = useState<string>("");
   const [filterEtiqueta, setFilterEtiqueta] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   useEffect(() => {
     fetchCategoriasYEtiquetas();
@@ -148,6 +146,7 @@ export default function EstadisticasPage() {
     filterDifficulty,
     filterCategoria,
     filterEtiqueta,
+    sortOrder,
   ]);
 
   const fetchCategoriasYEtiquetas = async () => {
@@ -179,7 +178,6 @@ export default function EstadisticasPage() {
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Calcular fecha de inicio según el rango
     let startDate = new Date(0);
 
     if (timeRange === "custom") {
@@ -196,14 +194,12 @@ export default function EstadisticasPage() {
       startDate = subDays(new Date(), 90);
     }
 
-    // Obtener logros completados (sin filtros)
     const { count: achievementsCount } = await supabase
       .from("progreso_logros_usuario")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
       .not("desbloqueado_en", "is", null);
 
-    // Construir query base
     let query = supabase
       .from("intentos_examen")
       .select(
@@ -224,9 +220,8 @@ export default function EstadisticasPage() {
       `
       )
       .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: sortOrder === "asc" });
 
-    // Aplicar filtros de fecha
     if (timeRange === "custom") {
       if (customStartDate) {
         query = query.gte(
@@ -251,26 +246,21 @@ export default function EstadisticasPage() {
       return;
     }
 
-    // Aplicar filtros adicionales en el cliente
     const attempts = allAttempts.filter((attempt) => {
       const exam = attempt.examenes as any;
 
-      // Filtro por tipo
       if (filterType && exam?.exam_type !== filterType) {
         return false;
       }
 
-      // Filtro por dificultad
       if (filterDifficulty && exam?.difficulty !== filterDifficulty) {
         return false;
       }
 
-      // Filtro por categoría
       if (filterCategoria && exam?.categoria_id !== parseInt(filterCategoria)) {
         return false;
       }
 
-      // Filtro por etiqueta
       if (filterEtiqueta) {
         const etiquetasArray = exam?.etiquetas || [];
         if (!etiquetasArray.includes(parseInt(filterEtiqueta))) {
@@ -281,7 +271,6 @@ export default function EstadisticasPage() {
       return true;
     });
 
-    // Calcular estadísticas generales
     const totalAttempts = attempts.length;
     const totalCorrect = attempts.reduce(
       (sum, a) => sum + (a.score_correct || 0),
@@ -295,20 +284,16 @@ export default function EstadisticasPage() {
     const averageScore =
       totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
 
-    // Calcular mejor puntuación
     const scores = attempts.map((a) => {
       const total = (a.score_correct || 0) + (a.score_incorrect || 0);
       return total > 0 ? ((a.score_correct || 0) / total) * 100 : 0;
     });
     const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
 
-    // Calcular racha (sin filtros - siempre usa todos los intentos)
     const streak = calculateStreak(allAttempts);
 
-    // Obtener exámenes únicos
     const uniqueExams = new Set(attempts.map((a) => a.examen_id)).size;
 
-    // Estadísticas por tipo
     const typeCount: { [key: string]: number } = {};
     attempts.forEach((a) => {
       const type = (a.examenes as any)?.exam_type || "N/A";
@@ -321,7 +306,6 @@ export default function EstadisticasPage() {
           )
         : "N/A";
 
-    // Estadísticas por dificultad
     const diffCount: { [key: string]: number } = {};
     attempts.forEach((a) => {
       const diff = (a.examenes as any)?.difficulty || "N/A";
@@ -354,7 +338,6 @@ export default function EstadisticasPage() {
       completedAchievements: achievementsCount || 0,
     });
 
-    // Datos para gráfico de progreso temporal con agrupación
     const progressMap = new Map<string, { score: number; count: number }>();
     attempts.forEach((a) => {
       const dateKey = getDateKey(new Date(a.created_at), groupBy);
@@ -386,7 +369,6 @@ export default function EstadisticasPage() {
 
     setProgressData(progressArray);
 
-    // Estadísticas por tema
     const topicMap = new Map<
       string,
       { total: number; correct: number; attempts: number }
@@ -418,7 +400,6 @@ export default function EstadisticasPage() {
       .slice(0, 5);
     setTopicStats(topicArray);
 
-    // Estadísticas por dificultad
     const diffMap = new Map<
       string,
       { total: number; correct: number; count: number }
@@ -450,7 +431,6 @@ export default function EstadisticasPage() {
     );
     setDifficultyStats(diffArray);
 
-    // Estadísticas por tipo
     const typeArray: TypeStats[] = Object.entries(typeCount).map(
       ([type, count]) => ({
         type:
@@ -467,7 +447,6 @@ export default function EstadisticasPage() {
     setLoading(false);
   };
 
-  // Función para obtener la clave de fecha según el agrupamiento
   const getDateKey = (date: Date, grouping: GroupBy): string => {
     switch (grouping) {
       case "day":
@@ -484,7 +463,6 @@ export default function EstadisticasPage() {
     }
   };
 
-  // Función para parsear la clave de fecha de vuelta a Date
   const parseDateKey = (dateKey: string, grouping: GroupBy): Date => {
     switch (grouping) {
       case "day":
@@ -558,10 +536,17 @@ export default function EstadisticasPage() {
     setFilterDifficulty("");
     setFilterCategoria("");
     setFilterEtiqueta("");
+    setSortOrder("desc");
   };
 
   const hasActiveFilters = () => {
-    return filterType || filterDifficulty || filterCategoria || filterEtiqueta;
+    return (
+      filterType ||
+      filterDifficulty ||
+      filterCategoria ||
+      filterEtiqueta ||
+      sortOrder !== "desc"
+    );
   };
 
   const getActiveFiltersCount = () => {
@@ -570,6 +555,7 @@ export default function EstadisticasPage() {
     if (filterDifficulty) count++;
     if (filterCategoria) count++;
     if (filterEtiqueta) count++;
+    if (sortOrder !== "desc") count++;
     return count;
   };
 
@@ -602,6 +588,10 @@ export default function EstadisticasPage() {
     if (filterEtiqueta) {
       const tag = etiquetas.find((e) => e.id === parseInt(filterEtiqueta));
       filters.push(`Etiqueta: ${tag?.nombre || "Desconocida"}`);
+    }
+
+    if (sortOrder !== "desc") {
+      filters.push(`Orden: Más antiguo primero`);
     }
 
     return filters.join(" • ");
@@ -909,6 +899,19 @@ export default function EstadisticasPage() {
                     ))}
                   </select>
                 </div>
+
+                <div className="filter-group">
+                  <label>Ordenar por Fecha</label>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) =>
+                      setSortOrder(e.target.value as "desc" | "asc")
+                    }
+                  >
+                    <option value="desc">Más reciente primero</option>
+                    <option value="asc">Más antiguo primero</option>
+                  </select>
+                </div>
               </div>
 
               {hasActiveFilters() && (
@@ -945,7 +948,6 @@ export default function EstadisticasPage() {
         </div>
       </div>
 
-      {/* Tarjetas de Resumen */}
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: "#e3f2fd" }}>
@@ -1030,9 +1032,7 @@ export default function EstadisticasPage() {
         </div>
       </div>
 
-      {/* Gráficos */}
       <div className="charts-container">
-        {/* Gráfico de Progreso con Selector de Agrupación */}
         <div className="chart-card chart-card-full">
           <div className="chart-header">
             <h3>📈 Progreso en el Tiempo {getFilteredStatsLabel()}</h3>
@@ -1068,7 +1068,6 @@ export default function EstadisticasPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Gráfico por Tema */}
         <div className="chart-card">
           <h3>📚 Top 5 Temas Más Practicados {getFilteredStatsLabel()}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -1083,7 +1082,6 @@ export default function EstadisticasPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Gráfico por Dificultad */}
         <div className="chart-card">
           <h3>🎯 Rendimiento por Dificultad {getFilteredStatsLabel()}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -1103,7 +1101,6 @@ export default function EstadisticasPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Gráfico Circular de Tipos */}
         <div className="chart-card">
           <h3>📋 Distribución por Tipo de Examen {getFilteredStatsLabel()}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -1131,7 +1128,6 @@ export default function EstadisticasPage() {
         </div>
       </div>
 
-      {/* Información Adicional */}
       <div className="info-cards">
         <div className="info-card">
           <h4>🏆 Tipo Favorito</h4>
