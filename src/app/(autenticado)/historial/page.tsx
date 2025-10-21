@@ -545,7 +545,7 @@ export default function HistorialPage() {
   }
 
   return (
-    <div className="page-content historial-page-container">
+    <div className="historial-page-container">
       {error && (
         <div className="alert alert-error">
           <FiX className="alert-icon" />

@@ -13,6 +13,8 @@ import {
   FiDownload,
   FiStar,
   FiCalendar,
+  FiFilter,
+  FiX,
 } from "react-icons/fi";
 import {
   LineChart,
@@ -81,6 +83,16 @@ type TypeStats = {
 
 type GroupBy = "day" | "week" | "month" | "year";
 
+type Categoria = {
+  id: number;
+  nombre: string;
+};
+
+type Etiqueta = {
+  id: number;
+  nombre: string;
+};
+
 export default function EstadisticasPage() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
@@ -110,9 +122,55 @@ export default function EstadisticasPage() {
   const [customEndDate, setCustomEndDate] = useState("");
   const [showCustomDateInputs, setShowCustomDateInputs] = useState(false);
 
+  // Estados para categorías y etiquetas
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+
+  // Estados para filtros adicionales
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterType, setFilterType] = useState<string>("");
+  const [filterDifficulty, setFilterDifficulty] = useState<string>("");
+  const [filterCategoria, setFilterCategoria] = useState<string>("");
+  const [filterEtiqueta, setFilterEtiqueta] = useState<string>("");
+
+  useEffect(() => {
+    fetchCategoriasYEtiquetas();
+  }, []);
+
   useEffect(() => {
     fetchStatistics();
-  }, [timeRange, customStartDate, customEndDate, groupBy]);
+  }, [
+    timeRange,
+    customStartDate,
+    customEndDate,
+    groupBy,
+    filterType,
+    filterDifficulty,
+    filterCategoria,
+    filterEtiqueta,
+  ]);
+
+  const fetchCategoriasYEtiquetas = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: cats } = await supabase
+      .from("categorias")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("nombre");
+
+    const { data: tags } = await supabase
+      .from("etiquetas")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("nombre");
+
+    setCategorias(cats || []);
+    setEtiquetas(tags || []);
+  };
 
   const fetchStatistics = async () => {
     setLoading(true);
@@ -138,7 +196,7 @@ export default function EstadisticasPage() {
       startDate = subDays(new Date(), 90);
     }
 
-    // Obtener logros completados
+    // Obtener logros completados (sin filtros)
     const { count: achievementsCount } = await supabase
       .from("progreso_logros_usuario")
       .select("*", { count: "exact", head: true })
@@ -159,7 +217,9 @@ export default function EstadisticasPage() {
           topic,
           exam_type,
           difficulty,
-          questions
+          questions,
+          categoria_id,
+          etiquetas
         )
       `
       )
@@ -184,12 +244,42 @@ export default function EstadisticasPage() {
       query = query.gte("created_at", startDate.toISOString());
     }
 
-    const { data: attempts } = await query;
+    const { data: allAttempts } = await query;
 
-    if (!attempts) {
+    if (!allAttempts) {
       setLoading(false);
       return;
     }
+
+    // Aplicar filtros adicionales en el cliente
+    let attempts = allAttempts.filter((attempt) => {
+      const exam = attempt.examenes as any;
+
+      // Filtro por tipo
+      if (filterType && exam?.exam_type !== filterType) {
+        return false;
+      }
+
+      // Filtro por dificultad
+      if (filterDifficulty && exam?.difficulty !== filterDifficulty) {
+        return false;
+      }
+
+      // Filtro por categoría
+      if (filterCategoria && exam?.categoria_id !== parseInt(filterCategoria)) {
+        return false;
+      }
+
+      // Filtro por etiqueta
+      if (filterEtiqueta) {
+        const etiquetasArray = exam?.etiquetas || [];
+        if (!etiquetasArray.includes(parseInt(filterEtiqueta))) {
+          return false;
+        }
+      }
+
+      return true;
+    });
 
     // Calcular estadísticas generales
     const totalAttempts = attempts.length;
@@ -212,8 +302,8 @@ export default function EstadisticasPage() {
     });
     const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
 
-    // Calcular racha (días consecutivos con al menos un intento)
-    const streak = calculateStreak(attempts);
+    // Calcular racha (sin filtros - siempre usa todos los intentos)
+    const streak = calculateStreak(allAttempts);
 
     // Obtener exámenes únicos
     const uniqueExams = new Set(attempts.map((a) => a.examen_id)).size;
@@ -289,7 +379,6 @@ export default function EstadisticasPage() {
         exams: data.count,
       }))
       .sort((a, b) => {
-        // Ordenar por fecha
         const dateA = parseDateKey(a.date, groupBy);
         const dateB = parseDateKey(b.date, groupBy);
         return dateA.getTime() - dateB.getTime();
@@ -395,7 +484,7 @@ export default function EstadisticasPage() {
     }
   };
 
-  // Función para parsear la clave de fecha de vuelta a Date (para ordenar)
+  // Función para parsear la clave de fecha de vuelta a Date
   const parseDateKey = (dateKey: string, grouping: GroupBy): Date => {
     switch (grouping) {
       case "day":
@@ -464,6 +553,65 @@ export default function EstadisticasPage() {
     }
   };
 
+  const clearFilters = () => {
+    setFilterType("");
+    setFilterDifficulty("");
+    setFilterCategoria("");
+    setFilterEtiqueta("");
+  };
+
+  const hasActiveFilters = () => {
+    return filterType || filterDifficulty || filterCategoria || filterEtiqueta;
+  };
+
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (filterType) count++;
+    if (filterDifficulty) count++;
+    if (filterCategoria) count++;
+    if (filterEtiqueta) count++;
+    return count;
+  };
+
+  const getActiveFiltersDescription = () => {
+    const filters = [];
+
+    if (filterType) {
+      const typeLabel =
+        filterType === "opcion_multiple"
+          ? "Opción Múltiple"
+          : filterType === "verdadero_falso"
+          ? "Verdadero o Falso"
+          : "Pregunta Abierta";
+      filters.push(`Tipo: ${typeLabel}`);
+    }
+
+    if (filterDifficulty) {
+      filters.push(
+        `Dificultad: ${
+          filterDifficulty.charAt(0).toUpperCase() + filterDifficulty.slice(1)
+        }`
+      );
+    }
+
+    if (filterCategoria) {
+      const cat = categorias.find((c) => c.id === parseInt(filterCategoria));
+      filters.push(`Categoría: ${cat?.nombre || "Desconocida"}`);
+    }
+
+    if (filterEtiqueta) {
+      const tag = etiquetas.find((e) => e.id === parseInt(filterEtiqueta));
+      filters.push(`Etiqueta: ${tag?.nombre || "Desconocida"}`);
+    }
+
+    return filters.join(" • ");
+  };
+
+  const getFilteredStatsLabel = () => {
+    if (!hasActiveFilters()) return "";
+    return "(Filtrado)";
+  };
+
   const exportToPDF = () => {
     const doc = new jsPDF();
 
@@ -478,7 +626,11 @@ export default function EstadisticasPage() {
     );
     doc.text(`Rango: ${getTimeRangeLabel(timeRange)}`, 14, 34);
 
-    let yPosition = 45;
+    if (hasActiveFilters()) {
+      doc.text(`Filtros: ${getActiveFiltersDescription()}`, 14, 40);
+    }
+
+    let yPosition = hasActiveFilters() ? 50 : 45;
 
     doc.setFontSize(13);
     doc.text("Resumen General", 14, yPosition);
@@ -545,6 +697,13 @@ export default function EstadisticasPage() {
       },
     ];
 
+    if (hasActiveFilters()) {
+      summaryData.unshift({
+        Métrica: "Filtros Aplicados",
+        Valor: getActiveFiltersDescription(),
+      });
+    }
+
     const topicData = topicStats.map((topic) => ({
       Tema: topic.topic,
       Intentos: topic.attempts,
@@ -558,7 +717,7 @@ export default function EstadisticasPage() {
     XLSX.utils.book_append_sheet(wb, ws1, "Resumen");
     XLSX.utils.book_append_sheet(wb, ws2, "Temas");
 
-    ws1["!cols"] = [{ wch: 25 }, { wch: 20 }];
+    ws1["!cols"] = [{ wch: 25 }, { wch: 40 }];
     ws2["!cols"] = [{ wch: 30 }, { wch: 12 }, { wch: 15 }];
 
     XLSX.writeFile(wb, `estadisticas_${new Date().getTime()}.xlsx`);
@@ -594,21 +753,6 @@ export default function EstadisticasPage() {
     }
   };
 
-  const getGroupByLabel = (group: GroupBy): string => {
-    switch (group) {
-      case "day":
-        return "Día";
-      case "week":
-        return "Semana";
-      case "month":
-        return "Mes";
-      case "year":
-        return "Año";
-      default:
-        return "Día";
-    }
-  };
-
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
   if (loading) {
@@ -620,50 +764,66 @@ export default function EstadisticasPage() {
   }
 
   return (
-    <div className="page-content estadisticas-page">
+    <div className="estadisticas-page">
       <div className="stats-header">
         <h1>Dashboard de Estadísticas 📊</h1>
         <p className="page-description">
           Aquí puedes visualizar tu progreso, analizar tus resultados a lo largo
           del tiempo y descubrir tus puntos fuertes.
         </p>
+
         <div className="stats-controls">
-          <div className="time-range-selector">
+          <div className="controls-row">
+            <div className="time-range-selector">
+              <button
+                className={timeRange === "7" ? "active" : ""}
+                onClick={() => handleTimeRangeChange("7")}
+              >
+                7 días
+              </button>
+              <button
+                className={timeRange === "14" ? "active" : ""}
+                onClick={() => handleTimeRangeChange("14")}
+              >
+                14 días
+              </button>
+              <button
+                className={timeRange === "30" ? "active" : ""}
+                onClick={() => handleTimeRangeChange("30")}
+              >
+                30 días
+              </button>
+              <button
+                className={timeRange === "90" ? "active" : ""}
+                onClick={() => handleTimeRangeChange("90")}
+              >
+                90 días
+              </button>
+              <button
+                className={timeRange === "all" ? "active" : ""}
+                onClick={() => handleTimeRangeChange("all")}
+              >
+                Todo
+              </button>
+              <button
+                className={timeRange === "custom" ? "active" : ""}
+                onClick={() => handleTimeRangeChange("custom")}
+              >
+                <FiCalendar /> Personalizado
+              </button>
+            </div>
+
             <button
-              className={timeRange === "7" ? "active" : ""}
-              onClick={() => handleTimeRangeChange("7")}
+              className="btn-filters"
+              onClick={() => setShowFilters(!showFilters)}
             >
-              7 días
-            </button>
-            <button
-              className={timeRange === "14" ? "active" : ""}
-              onClick={() => handleTimeRangeChange("14")}
-            >
-              14 días
-            </button>
-            <button
-              className={timeRange === "30" ? "active" : ""}
-              onClick={() => handleTimeRangeChange("30")}
-            >
-              30 días
-            </button>
-            <button
-              className={timeRange === "90" ? "active" : ""}
-              onClick={() => handleTimeRangeChange("90")}
-            >
-              90 días
-            </button>
-            <button
-              className={timeRange === "all" ? "active" : ""}
-              onClick={() => handleTimeRangeChange("all")}
-            >
-              Todo
-            </button>
-            <button
-              className={timeRange === "custom" ? "active" : ""}
-              onClick={() => handleTimeRangeChange("custom")}
-            >
-              <FiCalendar /> Personalizado
+              <FiFilter />
+              Filtros
+              {hasActiveFilters() && (
+                <span className="filter-count-badge">
+                  {getActiveFiltersCount()}
+                </span>
+              )}
             </button>
           </div>
 
@@ -691,6 +851,89 @@ export default function EstadisticasPage() {
             </div>
           )}
 
+          {showFilters && (
+            <div className="filters-panel">
+              <div className="filters-grid">
+                <div className="filter-group">
+                  <label>Tipo de Examen</label>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    <option value="opcion_multiple">Opción Múltiple</option>
+                    <option value="verdadero_falso">Verdadero o Falso</option>
+                    <option value="pregunta_abierta">Pregunta Abierta</option>
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>Dificultad</label>
+                  <select
+                    value={filterDifficulty}
+                    onChange={(e) => setFilterDifficulty(e.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    <option value="principiante">Principiante</option>
+                    <option value="intermedio">Intermedio</option>
+                    <option value="avanzado">Avanzado</option>
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>Categoría</label>
+                  <select
+                    value={filterCategoria}
+                    onChange={(e) => setFilterCategoria(e.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    {categorias.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>Etiqueta</label>
+                  <select
+                    value={filterEtiqueta}
+                    onChange={(e) => setFilterEtiqueta(e.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    {etiquetas.map((tag) => (
+                      <option key={tag.id} value={tag.id}>
+                        {tag.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {hasActiveFilters() && (
+                <button className="btn-clear-filters" onClick={clearFilters}>
+                  <FiX /> Limpiar Filtros
+                </button>
+              )}
+            </div>
+          )}
+
+          {hasActiveFilters() && (
+            <div className="active-filters-banner">
+              <div className="banner-content">
+                <FiFilter className="banner-icon" />
+                <span className="banner-text">
+                  Mostrando resultados filtrados:{" "}
+                  {getActiveFiltersDescription()}
+                </span>
+              </div>
+              <button className="banner-close" onClick={clearFilters}>
+                <FiX />
+              </button>
+            </div>
+          )}
+
           <div className="export-buttons">
             <button className="btn-export-pdf" onClick={exportToPDF}>
               <FiDownload /> PDF
@@ -709,7 +952,9 @@ export default function EstadisticasPage() {
             <FiBarChart2 size={28} color="#1976d2" />
           </div>
           <div className="stat-content">
-            <p className="stat-label">Exámenes Realizados</p>
+            <p className="stat-label">
+              Exámenes Realizados {getFilteredStatsLabel()}
+            </p>
             <h2 className="stat-value">{stats.totalExams}</h2>
           </div>
         </div>
@@ -719,7 +964,9 @@ export default function EstadisticasPage() {
             <FiTarget size={28} color="#388e3c" />
           </div>
           <div className="stat-content">
-            <p className="stat-label">Promedio General</p>
+            <p className="stat-label">
+              Promedio General {getFilteredStatsLabel()}
+            </p>
             <h2 className="stat-value">{stats.averageScore.toFixed(1)}%</h2>
           </div>
         </div>
@@ -729,7 +976,9 @@ export default function EstadisticasPage() {
             <FiAward size={28} color="#f57c00" />
           </div>
           <div className="stat-content">
-            <p className="stat-label">Mejor Puntuación</p>
+            <p className="stat-label">
+              Mejor Puntuación {getFilteredStatsLabel()}
+            </p>
             <h2 className="stat-value">{stats.bestScore.toFixed(1)}%</h2>
           </div>
         </div>
@@ -749,7 +998,9 @@ export default function EstadisticasPage() {
             <FiCheckCircle size={28} color="#7b1fa2" />
           </div>
           <div className="stat-content">
-            <p className="stat-label">Preguntas Correctas</p>
+            <p className="stat-label">
+              Preguntas Correctas {getFilteredStatsLabel()}
+            </p>
             <h2 className="stat-value">
               {stats.correctAnswers}/{stats.totalQuestions}
             </h2>
@@ -761,7 +1012,9 @@ export default function EstadisticasPage() {
             <FiTrendingUp size={28} color="#00796b" />
           </div>
           <div className="stat-content">
-            <p className="stat-label">Total Intentos</p>
+            <p className="stat-label">
+              Total Intentos {getFilteredStatsLabel()}
+            </p>
             <h2 className="stat-value">{stats.totalAttempts}</h2>
           </div>
         </div>
@@ -782,7 +1035,7 @@ export default function EstadisticasPage() {
         {/* Gráfico de Progreso con Selector de Agrupación */}
         <div className="chart-card chart-card-full">
           <div className="chart-header">
-            <h3>📈 Progreso en el Tiempo</h3>
+            <h3>📈 Progreso en el Tiempo {getFilteredStatsLabel()}</h3>
             <div className="group-by-selector">
               <label>Agrupar por:</label>
               <select
@@ -817,7 +1070,7 @@ export default function EstadisticasPage() {
 
         {/* Gráfico por Tema */}
         <div className="chart-card">
-          <h3>📚 Top 5 Temas Más Practicados</h3>
+          <h3>📚 Top 5 Temas Más Practicados {getFilteredStatsLabel()}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={topicStats}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -832,7 +1085,7 @@ export default function EstadisticasPage() {
 
         {/* Gráfico por Dificultad */}
         <div className="chart-card">
-          <h3>🎯 Rendimiento por Dificultad</h3>
+          <h3>🎯 Rendimiento por Dificultad {getFilteredStatsLabel()}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={difficultyStats}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -852,7 +1105,7 @@ export default function EstadisticasPage() {
 
         {/* Gráfico Circular de Tipos */}
         <div className="chart-card">
-          <h3>📋 Distribución por Tipo de Examen</h3>
+          <h3>📋 Distribución por Tipo de Examen {getFilteredStatsLabel()}</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie

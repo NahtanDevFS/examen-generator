@@ -1,5 +1,9 @@
 /* src/app/(autenticado)/perfil/perfil.css */
 
+.page-content {
+  margin-left: 35rem !important;
+}
+
 .profile-forms-container {
   display: grid;
   grid-template-columns: 1fr;
@@ -74,4 +78,11 @@
   margin-top: 1rem;
   font-size: 0.9rem;
   text-align: center;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .page-content {
+    margin-left: 0 !important;
+  }
 }

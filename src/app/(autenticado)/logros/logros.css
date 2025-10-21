@@ -1,4 +1,8 @@
 /* src/app/(autenticado)/logros/logros.css */
+.logros-page {
+  margin-left: 35rem !important;
+}
+
 .logros-page .summary-card {
   background: #fff;
   padding: 1.5rem;
@@ -94,4 +98,11 @@
 
 .logro-card.unlocked .logro-progress-fill {
   background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .logros-page {
+    margin-left: 0 !important;
+  }
 }

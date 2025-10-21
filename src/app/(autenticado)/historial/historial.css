@@ -1,7 +1,16 @@
 /* src/app/(autenticado)/historial/historial.css */
-
 .historial-page-container {
   max-width: 1300px !important;
+  margin-left: 22rem !important;
+}
+
+.historial-page-container button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .alert {
@@ -640,6 +649,9 @@
 
 /* Ajustes responsivos para los botones de acción */
 @media (max-width: 768px) {
+  .historial-page-container {
+    margin-left: 0 !important;
+  }
   .item-actions-bar {
     flex-direction: column;
     gap: 0.5rem;

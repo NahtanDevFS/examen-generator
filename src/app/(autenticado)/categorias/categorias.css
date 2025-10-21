@@ -2,6 +2,7 @@
 
 .categorias-page {
   max-width: 1200px !important;
+  margin-left: 23rem !important;
 }
 
 .alert {
@@ -272,6 +273,9 @@
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
+  .categorias-page {
+    margin-left: 0 !important;
+  }
   .section-header {
     flex-direction: column;
     align-items: flex-start;

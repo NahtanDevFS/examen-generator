@@ -3,6 +3,7 @@
 .aprender-page {
   max-width: 900px;
   margin: auto;
+  margin-left: 33rem !important;
 }
 
 .selector-container {
@@ -192,5 +193,12 @@
   }
   100% {
     opacity: 0.2;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .aprender-page {
+    margin-left: 0 !important;
   }
 }
