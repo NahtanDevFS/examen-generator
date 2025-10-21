@@ -252,7 +252,7 @@ export default function EstadisticasPage() {
     }
 
     // Aplicar filtros adicionales en el cliente
-    let attempts = allAttempts.filter((attempt) => {
+    const attempts = allAttempts.filter((attempt) => {
       const exam = attempt.examenes as any;
 
       // Filtro por tipo
