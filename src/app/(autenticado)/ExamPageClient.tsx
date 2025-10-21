@@ -1,12 +1,14 @@
+// src/app/(autenticado)/ExamPageClient.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FiUpload, FiX, FiClock, FiHelpCircle } from "react-icons/fi";
+import { FiUpload, FiX, FiClock, FiHelpCircle, FiImage } from "react-icons/fi";
 import "./loading-screen.css";
 import * as pdfjs from "pdfjs-dist";
+import Tesseract from "tesseract.js";
 
 // NOTA IMPORTANTE: Se configura el worker de PDF.js para que la extracción de texto funcione.
 // La ruta '/' busca el archivo directamente en la carpeta 'public' del proyecto.
@@ -140,6 +142,10 @@ export default function HomePage() {
     {}
   );
 
+  // Estados para OCR
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+
   // Timer effect
   useEffect(() => {
     if (timerActive && timeRemaining !== null && timeRemaining > 0) {
@@ -233,7 +239,45 @@ export default function HomePage() {
     setUploadedFile(file);
     setError(null);
 
-    if (file.type === "application/pdf") {
+    // Verificar si es una imagen
+    if (file.type.startsWith("image/")) {
+      try {
+        setIsProcessingOCR(true); // ✅ Pantalla de carga SOLO para OCR
+        setOcrProgress(0);
+
+        const result = await Tesseract.recognize(file, "spa", {
+          logger: (m) => {
+            if (m.status === "recognizing text") {
+              setOcrProgress(Math.round(m.progress * 100));
+            }
+          },
+        });
+
+        const extractedText = result.data.text;
+
+        if (!extractedText.trim()) {
+          setError(
+            "No se pudo extraer texto de la imagen. Asegúrate de que la imagen contenga texto legible."
+          );
+          setUploadedFile(null);
+        } else {
+          setSourceText(extractedText.trim());
+        }
+
+        setIsProcessingOCR(false);
+        setOcrProgress(0);
+      } catch (err: any) {
+        console.error("Error al procesar imagen con OCR:", err);
+        setError(
+          "Error al procesar la imagen. Asegúrate de que sea una imagen válida con texto legible."
+        );
+        setUploadedFile(null);
+        setSourceText("");
+        setIsProcessingOCR(false);
+        setOcrProgress(0);
+      }
+    } else if (file.type === "application/pdf") {
+      // ✅ PDF: Sin pantalla de carga (es relativamente rápido)
       try {
         const arrayBuffer = await new Promise<ArrayBuffer>(
           (resolve, reject) => {
@@ -250,19 +294,16 @@ export default function HomePage() {
           }
         );
 
-        // Load PDF from array buffer using pdfjs-dist
         const loadingTask = pdfjs.getDocument({
           data: new Uint8Array(arrayBuffer),
         });
         const pdf = await loadingTask.promise;
         let fullText = "";
 
-        // Iterate over all pages to extract text
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
 
-          // Join text items, often separated by spaces
           const pageText = textContent.items
             .map((item) => ("str" in item ? item.str : ""))
             .join(" ");
@@ -280,7 +321,7 @@ export default function HomePage() {
         setSourceText("");
       }
     } else {
-      // Logic for TXT files (text files)
+      // ✅ TXT: Sin pantalla de carga (es instantáneo)
       const reader = new FileReader();
       reader.onload = async (event) => {
         const text = event.target?.result as string;
@@ -289,10 +330,11 @@ export default function HomePage() {
       reader.readAsText(file);
     }
   };
-
   const removeFile = () => {
     setUploadedFile(null);
     setSourceText("");
+    setIsProcessingOCR(false);
+    setOcrProgress(0);
   };
 
   const handleGenerateExam = async (e: React.FormEvent) => {
@@ -572,6 +614,8 @@ export default function HomePage() {
     setTimeSpent(0);
     setOpenEvaluations({});
     setExplanations({});
+    setIsProcessingOCR(false);
+    setOcrProgress(0);
   };
 
   const toggleEtiqueta = (etiquetaId: number) => {
@@ -663,6 +707,44 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* PANTALLA DE PROCESAMIENTO OCR */}
+      {isProcessingOCR && (
+        <div className="loading-overlay">
+          <div className="loading-particles">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="particle"></div>
+            ))}
+          </div>
+
+          <div className="loading-content">
+            <div className="loading-icon-container">
+              <div className="pulse-ring"></div>
+              <div className="pulse-ring"></div>
+              <div className="pulse-ring"></div>
+              <div className="brain-icon">📸</div>
+            </div>
+
+            <h2 className="loading-title">
+              Extrayendo texto de la imagen<span className="dots"></span>
+            </h2>
+            <p className="loading-subtitle">
+              Procesando la imagen con reconocimiento óptico de caracteres (OCR)
+            </p>
+
+            <div className="progress-bar-container">
+              <div
+                className="progress-bar"
+                style={{ width: `${ocrProgress}%` }}
+              ></div>
+            </div>
+
+            <p className="loading-footer">
+              Progreso: {ocrProgress}% - Esto puede tardar unos segundos...
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* PANTALLA DE CARGA - CALIFICACIÓN DEL EXAMEN */}
       {isGrading && (
         <div className="grading-overlay">
@@ -746,35 +828,41 @@ export default function HomePage() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Tema del examen (ej: JavaScript, Historia)"
-              disabled={isLoading}
+              disabled={isLoading || isProcessingOCR}
               className="topic-input"
             />
 
             {/* SUBIR ARCHIVO O TEXTO */}
             <div className="source-text-section">
+              Opcionalmente puedes agregar información sobre el tema que quieras
+              evaluarte.
               <label className="upload-label">
-                <FiUpload /> Subir archivo o pegar texto (opcional)
+                <FiUpload /> Subir archivo, imagen o pegar texto (opcional)
               </label>
               <div className="upload-container">
                 {!uploadedFile && !sourceText && (
                   <label className="file-upload-btn">
                     <input
                       type="file"
-                      accept=".txt,.pdf"
+                      accept=".txt,.pdf,image/*"
                       onChange={handleFileUpload}
-                      disabled={isLoading}
+                      disabled={isLoading || isProcessingOCR}
                       style={{ display: "none" }}
                     />
-                    Seleccionar archivo (.txt, .pdf)
+                    Seleccionar archivo (.txt, .pdf, imagen)
                   </label>
                 )}
                 {uploadedFile && (
                   <div className="uploaded-file">
-                    <span>📄 {uploadedFile.name}</span>
+                    <span>
+                      {uploadedFile.type.startsWith("image/") ? "🖼️" : "📄"}{" "}
+                      {uploadedFile.name}
+                    </span>
                     <button
                       type="button"
                       onClick={removeFile}
                       className="remove-file-btn"
+                      disabled={isProcessingOCR}
                     >
                       <FiX />
                     </button>
@@ -785,7 +873,7 @@ export default function HomePage() {
                 value={sourceText}
                 onChange={(e) => setSourceText(e.target.value)}
                 placeholder="O pega aquí el texto del que quieres generar el examen..."
-                disabled={isLoading}
+                disabled={isLoading || isProcessingOCR}
                 className="source-textarea"
                 rows={4}
               />
@@ -794,7 +882,7 @@ export default function HomePage() {
             <select
               value={examType}
               onChange={(e) => setExamType(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || isProcessingOCR}
               className="type-select"
             >
               <option value="opcion_multiple">Opción Múltiple</option>
@@ -805,7 +893,7 @@ export default function HomePage() {
             <select
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || isProcessingOCR}
               className="type-select"
             >
               <option value="principiante">Principiante</option>
@@ -816,7 +904,7 @@ export default function HomePage() {
             <select
               value={questionCount}
               onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-              disabled={isLoading}
+              disabled={isLoading || isProcessingOCR}
               className="type-select"
             >
               <option value={5}>5 Preguntas</option>
@@ -832,7 +920,7 @@ export default function HomePage() {
                   e.target.value ? parseInt(e.target.value) : null
                 )
               }
-              disabled={isLoading}
+              disabled={isLoading || isProcessingOCR}
               className="type-select"
             >
               <option value="">Sin categoría</option>
@@ -850,7 +938,7 @@ export default function HomePage() {
                   type="checkbox"
                   checked={hasTimer}
                   onChange={(e) => setHasTimer(e.target.checked)}
-                  disabled={isLoading}
+                  disabled={isLoading || isProcessingOCR}
                 />
                 <span>Agregar límite de tiempo ⏱️</span>
               </label>
@@ -863,7 +951,7 @@ export default function HomePage() {
                     max="180"
                     value={timerMinutes}
                     onChange={(e) => setTimerMinutes(parseInt(e.target.value))}
-                    disabled={isLoading}
+                    disabled={isLoading || isProcessingOCR}
                     className="timer-input"
                   />
                 </div>
@@ -891,7 +979,7 @@ export default function HomePage() {
                           : getTagColor(index),
                       }}
                       onClick={() => toggleEtiqueta(tag.id)}
-                      disabled={isLoading}
+                      disabled={isLoading || isProcessingOCR}
                     >
                       {tag.nombre}
                     </button>
@@ -902,10 +990,14 @@ export default function HomePage() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isProcessingOCR}
               className="generate-button"
             >
-              {isLoading ? "Generando..." : "Generar Examen"}
+              {isLoading
+                ? "Generando..."
+                : isProcessingOCR
+                ? "Procesando imagen..."
+                : "Generar Examen"}
             </button>
           </form>
         )}
