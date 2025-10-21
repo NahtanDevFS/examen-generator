@@ -3,7 +3,14 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { FiChevronDown, FiPlus, FiSend, FiStar } from "react-icons/fi";
+import {
+  FiChevronDown,
+  FiSend,
+  FiStar,
+  FiSearch,
+  FiX,
+  FiFilter,
+} from "react-icons/fi";
 import ReactMarkdown from "react-markdown";
 import "./aprender.css";
 
@@ -13,6 +20,10 @@ type Attempt = {
   examenes: {
     topic: string;
     questions: any[];
+    exam_type: string;
+    difficulty: string | null;
+    categoria_id: number | null;
+    etiquetas: number[];
   } | null;
   user_answers: any;
   score_correct: number;
@@ -24,48 +35,166 @@ type Message = {
   content: string;
 };
 
+type Categoria = {
+  id: number;
+  nombre: string;
+};
+
+type Etiqueta = {
+  id: number;
+  nombre: string;
+};
+
 export default function AprenderPage() {
   const supabase = createClient();
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [filteredAttempts, setFilteredAttempts] = useState<Attempt[]>([]);
   const [selectedAttempt, setSelectedAttempt] = useState<Attempt | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Estados para categorías y etiquetas
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+
+  // Estados para búsqueda y filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterDifficulty, setFilterDifficulty] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("");
+  const [filterCategoria, setFilterCategoria] = useState<string>("");
+  const [filterEtiqueta, setFilterEtiqueta] = useState<string>("");
+
   useEffect(() => {
-    const fetchAttempts = async () => {
-      // ✅ CORRECCIÓN: Obtener el usuario actual primero
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        console.error("No hay usuario autenticado");
-        return;
-      }
-
-      // ✅ CORRECCIÓN: Filtrar por user_id
-      const { data } = await supabase
-        .from("intentos_examen")
-        .select(
-          `
-          id,
-          created_at,
-          user_answers,
-          score_correct,
-          score_incorrect,
-          examenes ( topic, questions )
-        `
-        )
-        .eq("user_id", user.id) // ✅ Filtro agregado
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      setAttempts((data as any) || []);
-    };
     fetchAttempts();
-  }, [supabase]);
+  }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [
+    attempts,
+    searchTerm,
+    filterDifficulty,
+    filterType,
+    filterCategoria,
+    filterEtiqueta,
+  ]);
+
+  const fetchAttempts = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      console.error("No hay usuario autenticado");
+      return;
+    }
+
+    // Obtener categorías y etiquetas
+    const { data: cats } = await supabase
+      .from("categorias")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("nombre");
+
+    const { data: tags } = await supabase
+      .from("etiquetas")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("nombre");
+
+    setCategorias(cats || []);
+    setEtiquetas(tags || []);
+
+    // Obtener intentos con información completa del examen
+    const { data } = await supabase
+      .from("intentos_examen")
+      .select(
+        `
+        id,
+        created_at,
+        user_answers,
+        score_correct,
+        score_incorrect,
+        examenes ( 
+          topic, 
+          questions, 
+          exam_type, 
+          difficulty, 
+          categoria_id, 
+          etiquetas 
+        )
+      `
+      )
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    setAttempts((data as any) || []);
+  };
+
+  const applyFilters = () => {
+    let filtered = [...attempts];
+
+    // Filtro de búsqueda
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter((attempt) =>
+        attempt.examenes?.topic.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+
+    // Filtro de dificultad
+    if (filterDifficulty) {
+      filtered = filtered.filter(
+        (attempt) => attempt.examenes?.difficulty === filterDifficulty
+      );
+    }
+
+    // Filtro de tipo
+    if (filterType) {
+      filtered = filtered.filter(
+        (attempt) => attempt.examenes?.exam_type === filterType
+      );
+    }
+
+    // Filtro de categoría
+    if (filterCategoria) {
+      filtered = filtered.filter(
+        (attempt) =>
+          attempt.examenes?.categoria_id === parseInt(filterCategoria)
+      );
+    }
+
+    // Filtro de etiqueta
+    if (filterEtiqueta) {
+      filtered = filtered.filter((attempt) =>
+        attempt.examenes?.etiquetas?.includes(parseInt(filterEtiqueta))
+      );
+    }
+
+    setFilteredAttempts(filtered);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterDifficulty("");
+    setFilterType("");
+    setFilterCategoria("");
+    setFilterEtiqueta("");
+  };
+
+  const hasActiveFilters = () => {
+    return (
+      searchTerm ||
+      filterDifficulty ||
+      filterType ||
+      filterCategoria ||
+      filterEtiqueta
+    );
+  };
 
   const handleSelectAttempt = (attempt: Attempt) => {
     setSelectedAttempt(attempt);
@@ -129,6 +258,30 @@ export default function AprenderPage() {
     }
   };
 
+  const getExamTypeLabel = (type: string) => {
+    switch (type) {
+      case "opcion_multiple":
+        return "Opción Múltiple";
+      case "verdadero_falso":
+        return "Verdadero o Falso";
+      case "pregunta_abierta":
+        return "Pregunta Abierta";
+      default:
+        return type;
+    }
+  };
+
+  const capitalize = (s: string | null) => {
+    if (!s) return "";
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
+  const getCategoriaNombre = (categoriaId: number | null) => {
+    if (!categoriaId) return null;
+    const cat = categorias.find((c) => c.id === categoriaId);
+    return cat?.nombre;
+  };
+
   const suggestedPrompts = [
     "Identifica mis 3 puntos débiles en este examen.",
     "Sugiéreme 5 etiquetas relevantes para este examen.",
@@ -144,6 +297,116 @@ export default function AprenderPage() {
         artificial para obtener un análisis detallado y recomendaciones.
       </p>
 
+      {/* Barra de búsqueda */}
+      <div className="search-bar-container">
+        <div className="search-bar-wrapper">
+          <FiSearch className="search-icon" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar examen por nombre..."
+            className="search-input"
+          />
+          {searchTerm && (
+            <button
+              className="search-clear-btn"
+              onClick={() => setSearchTerm("")}
+              title="Limpiar búsqueda"
+            >
+              <FiX />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Botón de filtros */}
+      <div className="filters-control">
+        <button
+          className={`btn-filters ${showFilters ? "active" : ""}`}
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <FiFilter />
+          {showFilters ? "Ocultar Filtros" : "Filtros"}
+          {hasActiveFilters() && <span className="filter-badge">●</span>}
+        </button>
+        {hasActiveFilters() && (
+          <span className="active-filters-text">
+            {filteredAttempts.length} de {attempts.length} exámenes
+          </span>
+        )}
+      </div>
+
+      {/* Panel de filtros */}
+      {showFilters && (
+        <div className="filters-panel">
+          <div className="filters-grid">
+            <div className="filter-group">
+              <label>Tipo de Examen</label>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="opcion_multiple">Opción Múltiple</option>
+                <option value="verdadero_falso">Verdadero o Falso</option>
+                <option value="pregunta_abierta">Pregunta Abierta</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Dificultad</label>
+              <select
+                value={filterDifficulty}
+                onChange={(e) => setFilterDifficulty(e.target.value)}
+              >
+                <option value="">Todas</option>
+                <option value="principiante">Principiante</option>
+                <option value="intermedio">Intermedio</option>
+                <option value="avanzado">Avanzado</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Categoría</label>
+              <select
+                value={filterCategoria}
+                onChange={(e) => setFilterCategoria(e.target.value)}
+              >
+                <option value="">Todas</option>
+                {categorias.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Etiqueta</label>
+              <select
+                value={filterEtiqueta}
+                onChange={(e) => setFilterEtiqueta(e.target.value)}
+              >
+                <option value="">Todas</option>
+                {etiquetas.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {hasActiveFilters() && (
+            <button className="btn-clear-filters" onClick={clearFilters}>
+              <FiX /> Limpiar Filtros
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Selector de examen mejorado */}
       <div className="selector-container">
         <div
           className="custom-dropdown"
@@ -161,22 +424,54 @@ export default function AprenderPage() {
           </div>
           {isDropdownOpen && (
             <div className="dropdown-options">
-              {attempts.length > 0 ? (
-                attempts.map((att) => (
+              {filteredAttempts.length > 0 ? (
+                filteredAttempts.map((att) => (
                   <div
                     key={att.id}
                     className="dropdown-item"
                     onClick={() => handleSelectAttempt(att)}
                   >
-                    <span>{att.examenes?.topic}</span>
-                    <small>
-                      {new Date(att.created_at).toLocaleString("es-ES")}
-                    </small>
+                    <div className="dropdown-item-content">
+                      <span className="dropdown-item-title">
+                        {att.examenes?.topic}
+                      </span>
+                      <div className="dropdown-item-meta">
+                        <small className="dropdown-item-date">
+                          {new Date(att.created_at).toLocaleDateString(
+                            "es-ES",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </small>
+                        {att.examenes?.exam_type && (
+                          <span className="dropdown-item-badge type-badge">
+                            {getExamTypeLabel(att.examenes.exam_type)}
+                          </span>
+                        )}
+                        {att.examenes?.difficulty && (
+                          <span
+                            className={`dropdown-item-badge difficulty-${att.examenes.difficulty}`}
+                          >
+                            {capitalize(att.examenes.difficulty)}
+                          </span>
+                        )}
+                        {att.examenes?.categoria_id && (
+                          <span className="dropdown-item-badge categoria-badge">
+                            📁 {getCategoriaNombre(att.examenes.categoria_id)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))
               ) : (
                 <div className="dropdown-item disabled">
-                  No hay exámenes recientes.
+                  {hasActiveFilters()
+                    ? "No se encontraron exámenes con los filtros aplicados."
+                    : "No hay exámenes recientes."}
                 </div>
               )}
             </div>
