@@ -15,6 +15,7 @@
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "canvas-confetti": "^1.9.3",
     "date-fns": "^4.1.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

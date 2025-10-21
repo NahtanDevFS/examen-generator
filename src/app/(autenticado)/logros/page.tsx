@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import AchievementCelebration from "@/components/AchievementCelebration";
 import "./logros.css";
 
 type Logro = {
@@ -15,6 +16,7 @@ type Logro = {
   progreso_logros_usuario: {
     progreso_actual: number;
     desbloqueado_en: string | null;
+    visto_por_usuario: boolean;
   }[];
 };
 
@@ -26,6 +28,8 @@ export default function LogrosPage({ setHasNewAchievements }: LogrosPageProps) {
   const supabase = createClient();
   const [logros, setLogros] = useState<Logro[]>([]);
   const [loading, setLoading] = useState(true);
+  const [newlyUnlockedLogros, setNewlyUnlockedLogros] = useState<Logro[]>([]);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     const fetchAndMarkLogrosAsSeen = async () => {
@@ -39,23 +43,35 @@ export default function LogrosPage({ setHasNewAchievements }: LogrosPageProps) {
       const { data, error } = await supabase
         .from("logros")
         .select(
-          `*, progreso_logros_usuario ( progreso_actual, desbloqueado_en )`
+          `*, progreso_logros_usuario ( progreso_actual, desbloqueado_en, visto_por_usuario )`
         )
         .eq("progreso_logros_usuario.user_id", userData.user.id);
 
       if (data) {
         setLogros(data as Logro[]);
+
+        // 2. Filtrar logros nuevos (desbloqueados pero no vistos)
+        const nuevosLogros = (data as Logro[]).filter(
+          (logro) =>
+            logro.progreso_logros_usuario[0]?.desbloqueado_en &&
+            !logro.progreso_logros_usuario[0]?.visto_por_usuario
+        );
+
+        if (nuevosLogros.length > 0) {
+          setNewlyUnlockedLogros(nuevosLogros);
+          setShowCelebration(true);
+        }
       }
       setLoading(false);
 
-      // 2. Actualizamos la base de datos para marcar como vistos
+      // 3. Actualizamos la base de datos para marcar como vistos
       await supabase
         .from("progreso_logros_usuario")
         .update({ visto_por_usuario: true })
         .eq("user_id", userData.user.id)
         .eq("visto_por_usuario", false);
 
-      // 3. Notificamos al layout para que oculte la insignia
+      // 4. Notificamos al layout para que oculte la insignia
       if (setHasNewAchievements) {
         setHasNewAchievements(false);
       }
@@ -63,6 +79,11 @@ export default function LogrosPage({ setHasNewAchievements }: LogrosPageProps) {
 
     fetchAndMarkLogrosAsSeen();
   }, [supabase, setHasNewAchievements]);
+
+  const handleCloseCelebration = () => {
+    setShowCelebration(false);
+    setNewlyUnlockedLogros([]);
+  };
 
   if (loading) {
     return (
@@ -135,6 +156,14 @@ export default function LogrosPage({ setHasNewAchievements }: LogrosPageProps) {
           );
         })}
       </div>
+
+      {/* Animación de celebración */}
+      {showCelebration && newlyUnlockedLogros.length > 0 && (
+        <AchievementCelebration
+          logros={newlyUnlockedLogros}
+          onClose={handleCloseCelebration}
+        />
+      )}
     </div>
   );
 }

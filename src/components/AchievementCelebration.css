@@ -1,0 +1,350 @@
+/* src/components/AchievementCelebration.css */
+
+.achievement-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.achievement-overlay.exiting {
+  animation: fadeOut 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.achievement-modal {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.achievement-modal.exiting {
+  animation: scaleOut 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.5) rotate(-10deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.8) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+.achievement-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.achievement-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.achievement-content {
+  text-align: center;
+  color: white;
+}
+
+.achievement-header {
+  margin-bottom: 2rem;
+}
+
+.achievement-title {
+  font-size: 2rem;
+  margin: 0 0 0.5rem 0;
+  font-weight: bold;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.achievement-counter {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.achievement-icon-container {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 2rem;
+}
+
+.achievement-icon-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.4) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+.achievement-icon-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  animation: rotate 3s linear infinite;
+  backdrop-filter: blur(10px);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.achievement-icon {
+  font-size: 5rem;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+.achievement-info {
+  margin-bottom: 2rem;
+}
+
+.achievement-name {
+  font-size: 1.8rem;
+  margin: 0 0 1rem 0;
+  font-weight: bold;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.achievement-description {
+  font-size: 1.1rem;
+  margin: 0 0 1.5rem 0;
+  opacity: 0.95;
+  line-height: 1.5;
+}
+
+.achievement-difficulty {
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.achievement-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.nav-btn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.achievement-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dot.active {
+  background: white;
+  transform: scale(1.3);
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.achievement-continue-btn {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+  margin-top: 1rem;
+}
+
+.achievement-continue-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .achievement-modal {
+    padding: 1.5rem;
+    max-width: 95%;
+  }
+
+  .achievement-title {
+    font-size: 1.5rem;
+  }
+
+  .achievement-icon-container {
+    width: 120px;
+    height: 120px;
+  }
+
+  .achievement-icon {
+    font-size: 4rem;
+  }
+
+  .achievement-name {
+    font-size: 1.5rem;
+  }
+
+  .achievement-description {
+    font-size: 1rem;
+  }
+
+  .achievement-navigation {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .nav-btn {
+    width: 100%;
+  }
+
+  .achievement-dots {
+    order: -1;
+  }
+}
