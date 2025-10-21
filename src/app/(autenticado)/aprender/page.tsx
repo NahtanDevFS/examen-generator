@@ -66,6 +66,8 @@ export default function AprenderPage() {
   const [filterType, setFilterType] = useState<string>("");
   const [filterCategoria, setFilterCategoria] = useState<string>("");
   const [filterEtiqueta, setFilterEtiqueta] = useState<string>("");
+  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
+  const [filterDateTo, setFilterDateTo] = useState<string>("");
 
   useEffect(() => {
     fetchAttempts();
@@ -80,6 +82,8 @@ export default function AprenderPage() {
     filterType,
     filterCategoria,
     filterEtiqueta,
+    filterDateFrom,
+    filterDateTo,
   ]);
 
   const fetchAttempts = async () => {
@@ -175,6 +179,21 @@ export default function AprenderPage() {
       );
     }
 
+    // Filtro de fecha desde
+    if (filterDateFrom) {
+      filtered = filtered.filter(
+        (attempt) => new Date(attempt.created_at) >= new Date(filterDateFrom)
+      );
+    }
+
+    // Filtro de fecha hasta
+    if (filterDateTo) {
+      filtered = filtered.filter(
+        (attempt) =>
+          new Date(attempt.created_at) <= new Date(filterDateTo + "T23:59:59")
+      );
+    }
+
     setFilteredAttempts(filtered);
   };
 
@@ -184,6 +203,8 @@ export default function AprenderPage() {
     setFilterType("");
     setFilterCategoria("");
     setFilterEtiqueta("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
   };
 
   const hasActiveFilters = () => {
@@ -192,7 +213,9 @@ export default function AprenderPage() {
       filterDifficulty ||
       filterType ||
       filterCategoria ||
-      filterEtiqueta
+      filterEtiqueta ||
+      filterDateFrom ||
+      filterDateTo
     );
   };
 
@@ -395,6 +418,27 @@ export default function AprenderPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Desde</label>
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                max={filterDateTo || undefined}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label>Hasta</label>
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                min={filterDateFrom || undefined}
+                max={new Date().toISOString().split("T")[0]}
+              />
             </div>
           </div>
 
