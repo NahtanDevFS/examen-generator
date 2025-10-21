@@ -814,11 +814,11 @@ export default function EstadisticasPage() {
             </div>
 
             <button
-              className="btn-filters"
+              className={`btn-filters ${showFilters ? "active" : ""}`}
               onClick={() => setShowFilters(!showFilters)}
             >
               <FiFilter />
-              Filtros
+              {showFilters ? "Ocultar Filtros" : "Filtros"}
               {hasActiveFilters() && (
                 <span className="filter-count-badge">
                   {getActiveFiltersCount()}

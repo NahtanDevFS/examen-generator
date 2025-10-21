@@ -567,10 +567,10 @@ export default function HistorialPage() {
         </p>
         <div className="header-actions">
           <button
-            className="btn-filter"
+            className={`btn-filter ${showFilters ? "active" : ""}`}
             onClick={() => setShowFilters(!showFilters)}
           >
-            <FiFilter /> Filtros
+            <FiFilter /> {showFilters ? "Ocultar Filtros" : "Filtros"}
             {hasActiveFilters() && <span className="filter-badge">●</span>}
           </button>
           <button className="btn-export" onClick={toggleSelectMode}>
