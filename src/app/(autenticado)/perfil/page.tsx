@@ -24,7 +24,27 @@ export default function PerfilPage() {
   const [usernameMessage, setUsernameMessage] = useState("");
   const [usernameError, setUsernameError] = useState("");
 
+  // --- NUEVO ESTADO ---
+  // Estado para los recordatorios (true = activado, false = desactivado)
+  const [remindersActive, setRemindersActive] = useState(true);
+  // Clave para localStorage
+  const REMINDERS_STORAGE_KEY = "examen-generator-reminders";
+
   useEffect(() => {
+    // --- LÓGICA DE RECORDATORIOS ---
+    // Cargar el estado de recordatorios desde localStorage
+    const storedRemindersState = localStorage.getItem(REMINDERS_STORAGE_KEY);
+
+    // Si no existe, lo dejamos como true (valor por defecto)
+    if (storedRemindersState !== null) {
+      setRemindersActive(storedRemindersState === "true");
+    } else {
+      // Si no existe en localStorage, lo seteamos a 'true' por defecto
+      localStorage.setItem(REMINDERS_STORAGE_KEY, "true");
+    }
+    // --- FIN LÓGICA RECORDATORIOS ---
+
+    // Lógica existente para cargar el usuario
     const fetchUser = async () => {
       const {
         data: { user },
@@ -46,7 +66,7 @@ export default function PerfilPage() {
       setLoading(false);
     };
     fetchUser();
-  }, [supabase]);
+  }, [supabase]); // Dependencia de supabase se mantiene
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +122,20 @@ export default function PerfilPage() {
       setUsernameMessage("¡Nombre de usuario actualizado con éxito!");
     }
   };
+
+  // --- NUEVA FUNCIÓN ---
+  // Manejador para el botón de recordatorios
+  const handleToggleReminders = () => {
+    // Invertimos el estado actual
+    const newRemindersState = !remindersActive;
+
+    // Actualizamos el estado en React
+    setRemindersActive(newRemindersState);
+
+    // Guardamos el nuevo estado en localStorage como string
+    localStorage.setItem(REMINDERS_STORAGE_KEY, String(newRemindersState));
+  };
+  // --- FIN NUEVA FUNCIÓN ---
 
   // Función para obtener la primera letra del nombre (en mayúscula)
   const getInitials = (name: string) => {
@@ -200,6 +234,27 @@ export default function PerfilPage() {
             )}
           </form>
         </div>
+
+        {/* --- NUEVO BLOQUE --- */}
+        {/* Configuración de Recordatorios */}
+        <div className="profile-card">
+          <h2>Recordatorios de racha</h2>
+          <p>
+            {remindersActive
+              ? "Actualmente tienes los recordatorios activados."
+              : "Actualmente tienes los recordatorios desactivados."}
+          </p>
+          <button
+            type="button"
+            className="profile-button"
+            onClick={handleToggleReminders}
+          >
+            {remindersActive
+              ? "Desactivar recordatorios"
+              : "Activar recordatorios"}
+          </button>
+        </div>
+        {/* --- FIN NUEVO BLOQUE --- */}
       </div>
     </div>
   );
