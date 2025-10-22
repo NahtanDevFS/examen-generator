@@ -1,3 +1,4 @@
+// src/app/(autenticado)/perfil/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -102,6 +103,11 @@ export default function PerfilPage() {
     }
   };
 
+  // Función para obtener la primera letra del nombre (en mayúscula)
+  const getInitials = (name: string) => {
+    return name ? name.trim().charAt(0).toUpperCase() : "U"; // "U" como fallback si no hay nombre
+  };
+
   if (loading) {
     return (
       <div className="page-content">
@@ -112,11 +118,16 @@ export default function PerfilPage() {
 
   return (
     <div className="page-content">
-      <h1>Gestionar Perfil</h1>
-      <p className="page-description">
-        Aquí puedes actualizar tu dirección de correo electrónico y cambiar tu
-        contraseña de forma segura.
-      </p>
+      <div className="profile-header">
+        <div className="profile-avatar">{getInitials(newUsername)}</div>
+        <div>
+          <h1>Gestionar Perfil</h1>
+          <p className="page-description">
+            Aquí puedes actualizar tu dirección de correo electrónico y cambiar
+            tu contraseña de forma segura.
+          </p>
+        </div>
+      </div>
 
       <div className="profile-forms-container">
         {/* Formulario de Nombre de Usuario */}

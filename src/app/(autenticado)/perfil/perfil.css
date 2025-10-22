@@ -2,14 +2,49 @@
 
 .page-content {
   margin-left: 35rem !important;
+  padding: 2rem;
+}
+
+/* Avatar de perfil */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2.2rem;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.profile-header h1 {
+  margin: 0;
+  color: #1a2b4d;
+  font-size: 2rem;
+}
+
+.page-description {
+  margin: 0.5rem 0 0;
+  color: #666;
+  font-size: 1.1rem;
 }
 
 .profile-forms-container {
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
-  margin-top: 2rem;
-  max-width: 800px; /* Limita el ancho para mejor legibilidad */
+  max-width: 800px;
 }
 
 .profile-card {
@@ -84,5 +119,22 @@
 @media (max-width: 768px) {
   .page-content {
     margin-left: 0 !important;
+    padding: 1.5rem;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .profile-avatar {
+    width: 70px;
+    height: 70px;
+    font-size: 2rem;
+  }
+
+  .profile-header h1 {
+    font-size: 1.75rem;
   }
 }

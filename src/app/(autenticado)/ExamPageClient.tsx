@@ -71,7 +71,7 @@ export default function HomePage() {
   useEffect(() => {
     const storedUser = localStorage.getItem("examflowUser");
     if (!storedUser) {
-      router.push("/login");
+      router.push("/demo");
       return;
     }
 
