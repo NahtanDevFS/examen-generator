@@ -1,7 +1,7 @@
 // src/app/demo/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FiUpload } from "react-icons/fi";
 import "../(autenticado)/loading-screen.css";
@@ -20,6 +20,14 @@ export default function DemoPage() {
   const handleOverlayAction = () => {
     router.push("/login");
   };
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (storedUser) {
+      window.location.href = "/";
+      return;
+    }
+  }, []);
 
   return (
     <>
