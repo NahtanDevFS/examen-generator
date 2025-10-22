@@ -38,7 +38,7 @@ export default function DemoPage() {
             <h2>Crea una cuenta para comenzar</h2>
             <p>
               Para crear y realizar exámenes personalizados con IA, necesitas
-              una cuenta gratuita.
+              una cuenta.
             </p>
             <div className="demo-actions">
               <button
@@ -54,9 +54,6 @@ export default function DemoPage() {
                 Iniciar Sesión
               </button>
             </div>
-            <p className="demo-footer-text">
-              ✨ Acceso completo • Comienza en segundos
-            </p>
           </div>
         </div>
       )}
