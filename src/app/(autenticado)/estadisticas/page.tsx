@@ -132,6 +132,14 @@ export default function EstadisticasPage() {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (!storedUser) {
+      window.location.href = "/demo";
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
     fetchCategoriasYEtiquetas();
   }, []);
 

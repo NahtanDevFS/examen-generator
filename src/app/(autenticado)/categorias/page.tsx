@@ -66,6 +66,14 @@ export default function CategoriasPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (!storedUser) {
+      window.location.href = "/demo";
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
     fetchData();
   }, []);
 

@@ -24,6 +24,14 @@ export default function PerfilPage() {
   const [usernameMessage, setUsernameMessage] = useState("");
   const [usernameError, setUsernameError] = useState("");
 
+  useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (!storedUser) {
+      window.location.href = "/demo";
+      return;
+    }
+  }, []);
+
   // --- NUEVO ESTADO ---
   // Estado para los recordatorios (true = activado, false = desactivado)
   const [remindersActive, setRemindersActive] = useState(true);

@@ -91,6 +91,14 @@ export default function HistorialPage() {
   } | null>(null);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (!storedUser) {
+      window.location.href = "/demo";
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
     fetchHistory();
   }, []);
 

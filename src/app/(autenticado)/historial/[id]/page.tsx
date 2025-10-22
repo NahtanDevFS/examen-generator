@@ -67,6 +67,14 @@ export default function RevisionPage() {
   }>({});
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (!storedUser) {
+      window.location.href = "/demo";
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
     if (id) {
       const fetchReviewData = async () => {
         const { data, error } = await supabase

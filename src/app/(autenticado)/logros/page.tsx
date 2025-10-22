@@ -32,6 +32,14 @@ export default function LogrosPage({ setHasNewAchievements }: LogrosPageProps) {
   const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("examflowUser");
+    if (!storedUser) {
+      window.location.href = "/demo";
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchAndMarkLogrosAsSeen = async () => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
