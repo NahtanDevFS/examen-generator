@@ -20,7 +20,7 @@
     "date-fns": "^4.1.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
-    "next": "15.5.3",
+    "next": "15.5.9",
     "nodemailer": "^7.0.9",
     "pdfjs-dist": "^4.4.168",
     "react": "19.1.0",
